@@ -24,7 +24,7 @@ public static class SyncServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.AddOptions<SyncOptions>().Bind(configuration.GetSection("Sync")).ValidateOnStart();
+        services.AddOptions<SyncOptions>().Bind(configuration.GetSection("Sync"));
 
         services
             .AddHttpClient<IExternalTodoListClient, ExternalTodoListClient>(
