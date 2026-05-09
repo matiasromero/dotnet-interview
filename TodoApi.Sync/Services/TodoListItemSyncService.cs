@@ -164,12 +164,254 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         return new SyncRunResult(total, processed, failed, run.Status);
     }
 
-    public Task<SyncRunResult> PullTodoListItemsAsync(
+    public async Task<SyncRunResult> PullTodoListItemsAsync(
         IReadOnlyList<ExternalListWithMapping> mappedExternals,
         CancellationToken cancellationToken
     )
     {
-        throw new NotImplementedException("Pull will be implemented in Task 8");
+        var run = new SyncRun
+        {
+            EntityType = SyncEntityType.TodoListItem,
+            Direction = SyncDirection.Pull,
+            StartedAt = DateTime.UtcNow,
+            Status = SyncRunStatus.Running,
+        };
+        _db.SyncRuns.Add(run);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var mappedItemsByExternalId = (
+            await _db.GetMappedTodoListItemsAsync(cancellationToken)
+        ).ToDictionary(m => m.ExternalItemId, m => m, StringComparer.Ordinal);
+
+        // Flatten the mapped externals into per-item tuples so the reconcile loop never has to
+        // re-derive the parent ids: the caller (TodoListSyncService) already knows which local
+        // list each external belongs to.
+        var flattened = mappedExternals
+            .SelectMany(m =>
+                m.External.Items.Select(i =>
+                    (Item: i, ParentLocalId: m.ParentLocalId, ParentExternalId: m.ParentExternalId)
+                )
+            )
+            .ToList();
+
+        int processed = 0;
+        int failed = 0;
+
+        foreach (var (item, parentLocalId, parentExternalId) in flattened)
+        {
+            try
+            {
+                if (mappedItemsByExternalId.TryGetValue(item.Id, out var mapped))
+                {
+                    await ReconcileMappedItemAsync(item, mapped, cancellationToken);
+                }
+                else if (
+                    long.TryParse(item.SourceId, out var localItemId)
+                    && await _db.FindUnmappedLocalItemByIdAsync(
+                        localItemId,
+                        parentLocalId,
+                        cancellationToken
+                    )
+                        is { } orphan
+                )
+                {
+                    await AdoptOrphanItemAsync(orphan, item, parentExternalId, cancellationToken);
+                }
+                else
+                {
+                    await CreateLocalItemFromExternalAsync(
+                        item,
+                        parentLocalId,
+                        parentExternalId,
+                        cancellationToken
+                    );
+                }
+
+                processed++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Pull failed to reconcile external TodoListItem {ExternalItemId} (parent {ParentExternalId}, SourceId={SourceId})",
+                    item.Id,
+                    parentExternalId,
+                    item.SourceId
+                );
+                failed++;
+            }
+        }
+
+        run.FinishedAt = DateTime.UtcNow;
+        run.ItemsProcessed = processed;
+        run.ItemsFailed = failed;
+        run.Status =
+            failed == 0
+                ? SyncRunStatus.Succeeded
+                : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return new SyncRunResult(flattened.Count, processed, failed, run.Status);
+    }
+
+    private async Task ReconcileMappedItemAsync(
+        ExternalTodoItem external,
+        MappedTodoListItemRecord mapped,
+        CancellationToken ct
+    )
+    {
+        var localChanged =
+            mapped.CurrentLocalUpdatedAt > (mapped.LocalUpdatedAtAtSync ?? DateTime.MinValue);
+        var externalChanged =
+            external.UpdatedAt > (mapped.ExternalUpdatedAtAtSync ?? DateTime.MinValue);
+
+        if (localChanged && externalChanged)
+        {
+            // Both sides changed since the last sync. Last-write-wins; tie goes to external.
+            if (external.UpdatedAt >= mapped.CurrentLocalUpdatedAt)
+            {
+                await _db.ApplyRemoteWinsItemAsync(
+                    new ApplyRemoteWinsItemPlan(
+                        mapped.MappingId,
+                        mapped.LocalId,
+                        external.Description,
+                        external.Completed,
+                        external.UpdatedAt
+                    ),
+                    ct
+                );
+                _logger.LogInformation(
+                    "Pull reconciled TodoListItem {LocalId}: remote wins (external={ExternalAt}, local={LocalAt})",
+                    mapped.LocalId,
+                    external.UpdatedAt,
+                    mapped.CurrentLocalUpdatedAt
+                );
+            }
+            else
+            {
+                await PatchExternalItemAsync(mapped, ct);
+                _logger.LogInformation(
+                    "Pull reconciled TodoListItem {LocalId}: local wins (local={LocalAt}, external={ExternalAt})",
+                    mapped.LocalId,
+                    mapped.CurrentLocalUpdatedAt,
+                    external.UpdatedAt
+                );
+            }
+        }
+        else if (externalChanged)
+        {
+            await _db.ApplyRemoteWinsItemAsync(
+                new ApplyRemoteWinsItemPlan(
+                    mapped.MappingId,
+                    mapped.LocalId,
+                    external.Description,
+                    external.Completed,
+                    external.UpdatedAt
+                ),
+                ct
+            );
+            _logger.LogInformation(
+                "Pull adopted external change for TodoListItem {LocalId}",
+                mapped.LocalId
+            );
+        }
+        else if (localChanged)
+        {
+            await PatchExternalItemAsync(mapped, ct);
+            _logger.LogInformation(
+                "Pull pushed local change for TodoListItem {LocalId}",
+                mapped.LocalId
+            );
+        }
+        else
+        {
+            await BumpItemLastSyncedAsync(mapped.MappingId, ct);
+        }
+    }
+
+    private async Task PatchExternalItemAsync(MappedTodoListItemRecord mapped, CancellationToken ct)
+    {
+        var response = await _client.UpdateTodoItemAsync(
+            mapped.ParentExternalId,
+            mapped.ExternalItemId,
+            new UpdateExternalTodoItemRequest(mapped.CurrentDescription, mapped.CurrentIsCompleted),
+            ct
+        );
+
+        var trackedMapping =
+            await _db.SyncMappings.FindAsync(new object?[] { mapped.MappingId }, ct)
+            ?? throw new InvalidOperationException(
+                $"SyncMapping {mapped.MappingId} disappeared mid-pull"
+            );
+        trackedMapping.LocalUpdatedAtAtSync = mapped.CurrentLocalUpdatedAt;
+        trackedMapping.ExternalUpdatedAtAtSync = response.UpdatedAt;
+        trackedMapping.LastSyncedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task BumpItemLastSyncedAsync(long mappingId, CancellationToken ct)
+    {
+        var trackedMapping = await _db.SyncMappings.FindAsync(new object?[] { mappingId }, ct);
+        if (trackedMapping is null)
+        {
+            return;
+        }
+        trackedMapping.LastSyncedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task AdoptOrphanItemAsync(
+        LocalTodoListItemRecord orphan,
+        ExternalTodoItem external,
+        string parentExternalId,
+        CancellationToken ct
+    )
+    {
+        _db.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = orphan.Id,
+                ExternalId = external.Id,
+                ParentExternalId = parentExternalId,
+                IdempotencyKey = Guid.NewGuid(),
+                LastSyncedAt = DateTime.UtcNow,
+                LocalUpdatedAtAtSync = orphan.UpdatedAt,
+                ExternalUpdatedAtAtSync = external.UpdatedAt,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+        _logger.LogInformation(
+            "Pull adopted orphan TodoListItem {LocalId} as external {ExternalItemId}",
+            orphan.Id,
+            external.Id
+        );
+    }
+
+    private async Task CreateLocalItemFromExternalAsync(
+        ExternalTodoItem external,
+        long parentLocalId,
+        string parentExternalId,
+        CancellationToken ct
+    )
+    {
+        await _db.ApplyExternalItemCreateAsync(
+            new ApplyExternalItemCreatePlan(
+                parentLocalId,
+                parentExternalId,
+                external.Id,
+                external.Description,
+                external.Completed,
+                external.UpdatedAt,
+                Guid.NewGuid()
+            ),
+            ct
+        );
+        _logger.LogInformation(
+            "Pull created local TodoListItem from external {ExternalItemId} (parent {ParentExternalId})",
+            external.Id,
+            parentExternalId
+        );
     }
 
     private async Task RemoveMappingAsync(long mappingId, CancellationToken ct)
