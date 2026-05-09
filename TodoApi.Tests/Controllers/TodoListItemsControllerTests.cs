@@ -23,29 +23,35 @@ public class TodoListItemsControllerTests
         context.TodoList.Add(new TodoList { Id = 1, Name = "List 1" });
         context.TodoList.Add(new TodoList { Id = 2, Name = "List 2" });
 
-        context.TodoListItem.Add(new TodoListItem
-        {
-            Id = 1,
-            Description = "Item 1",
-            IsCompleted = false,
-            TodoListId = 1
-        });
+        context.TodoListItem.Add(
+            new TodoListItem
+            {
+                Id = 1,
+                Description = "Item 1",
+                IsCompleted = false,
+                TodoListId = 1,
+            }
+        );
 
-        context.TodoListItem.Add(new TodoListItem
-        {
-            Id = 2,
-            Description = "Item 2",
-            IsCompleted = true,
-            TodoListId = 1
-        });
+        context.TodoListItem.Add(
+            new TodoListItem
+            {
+                Id = 2,
+                Description = "Item 2",
+                IsCompleted = true,
+                TodoListId = 1,
+            }
+        );
 
-        context.TodoListItem.Add(new TodoListItem
-        {
-            Id = 3,
-            Description = "Item 3",
-            IsCompleted = false,
-            TodoListId = 2
-        });
+        context.TodoListItem.Add(
+            new TodoListItem
+            {
+                Id = 3,
+                Description = "Item 3",
+                IsCompleted = false,
+                TodoListId = 2,
+            }
+        );
 
         context.SaveChanges();
     }
@@ -57,7 +63,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.GetTodoListItems(1);
@@ -77,7 +86,10 @@ public class TodoListItemsControllerTests
             context.TodoList.Add(new TodoList { Id = 5, Name = "Empty List" });
             context.SaveChanges();
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.GetTodoListItems(5);
@@ -94,7 +106,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.GetTodoListItems(99);
@@ -110,7 +125,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.GetTodoListItem(99, 1);
@@ -126,7 +144,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.GetTodoListItem(1, 1);
@@ -145,7 +166,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.GetTodoListItem(1, 99);
@@ -161,7 +185,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             // Item 3 belongs to TodoListId 2, not 1
@@ -178,7 +205,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.PutTodoListItem(
@@ -201,7 +231,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             await controller.PutTodoListItem(
@@ -223,7 +256,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.PutTodoListItem(
@@ -243,7 +279,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.PutTodoListItem(
@@ -263,7 +302,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             // Item 3 belongs to TodoListId 2, not 1
@@ -288,7 +330,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             // Item 2 starts with IsCompleted = true
@@ -311,7 +356,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.PostTodoListItem(
@@ -337,7 +385,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.PostTodoListItem(
@@ -358,7 +409,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             await controller.PostTodoListItem(
@@ -367,7 +421,10 @@ public class TodoListItemsControllerTests
             );
 
             Assert.Equal(4, context.TodoListItem.Count());
-            Assert.Contains(context.TodoListItem, i => i.Description == "Persist me" && i.TodoListId == 1);
+            Assert.Contains(
+                context.TodoListItem,
+                i => i.Description == "Persist me" && i.TodoListId == 1
+            );
         }
     }
 
@@ -378,7 +435,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.PostTodoListItem(
@@ -398,7 +458,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.DeleteTodoListItem(1, 1);
@@ -416,7 +479,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.DeleteTodoListItem(1, 99);
@@ -433,7 +499,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             var result = await controller.DeleteTodoListItem(99, 1);
@@ -450,7 +519,10 @@ public class TodoListItemsControllerTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var controller = new TodoListItemsController(service);
 
             // Item 3 belongs to TodoListId 2, not 1

@@ -15,15 +15,14 @@ namespace TodoApi.Migrations
                 table: "TodoListItem",
                 type: "bit",
                 nullable: false,
-                defaultValue: false);
+                defaultValue: false
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "IsCompleted",
-                table: "TodoListItem");
+            migrationBuilder.DropColumn(name: "IsCompleted", table: "TodoListItem");
         }
     }
 }

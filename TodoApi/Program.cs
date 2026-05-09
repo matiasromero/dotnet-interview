@@ -3,13 +3,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using TodoApi.Services;
+using TodoApi.Sync.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddDbContext<TodoContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("TodoContext"))
+);
+
+builder.Services.AddScoped<TodoApi.Sync.Data.ISyncDbContext>(sp =>
+    sp.GetRequiredService<TodoContext>()
+);
+
+builder.Services.AddTodoSync(builder.Configuration);
+
 builder
-    .Services.AddDbContext<TodoContext>(opt =>
-        opt.UseSqlServer(builder.Configuration.GetConnectionString("TodoContext"))
-    )
-    .AddScoped<ITodoListService, TodoListService>()
+    .Services.AddScoped<ITodoListService, TodoListService>()
     .AddScoped<ITodoListItemService, TodoListItemService>()
     .AddEndpointsApiExplorer()
     .AddSwaggerGen(options =>
