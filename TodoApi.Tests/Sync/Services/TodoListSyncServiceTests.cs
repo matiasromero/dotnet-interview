@@ -737,6 +737,108 @@ public class TodoListSyncServiceTests
     }
 
     [Fact]
+    public async Task PullTodoListsAsync_CreateNewLocalFromExternalWithItems_PersistsItemsAndMappings()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var listUpdatedAt = new DateTime(2026, 5, 9, 12, 0, 0, DateTimeKind.Utc);
+        var item1UpdatedAt = new DateTime(2026, 5, 9, 12, 1, 0, DateTimeKind.Utc);
+        var item2UpdatedAt = new DateTime(2026, 5, 9, 12, 2, 0, DateTimeKind.Utc);
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+                new[]
+                {
+                    new ExternalTodoList(
+                        Id: "ext-99",
+                        SourceId: null!,
+                        Name: "Brand new with items",
+                        CreatedAt: listUpdatedAt,
+                        UpdatedAt: listUpdatedAt,
+                        Items: new[]
+                        {
+                            new ExternalTodoItem(
+                                Id: "ext-item-1",
+                                SourceId: null!,
+                                Description: "First external",
+                                Completed: false,
+                                CreatedAt: item1UpdatedAt,
+                                UpdatedAt: item1UpdatedAt
+                            ),
+                            new ExternalTodoItem(
+                                Id: "ext-item-2",
+                                SourceId: null!,
+                                Description: "Second external",
+                                Completed: true,
+                                CreatedAt: item2UpdatedAt,
+                                UpdatedAt: item2UpdatedAt
+                            ),
+                        }
+                    ),
+                }
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        var local = Assert.Single(ctx.TodoList);
+        Assert.Equal("Brand new with items", local.Name);
+        Assert.Equal(listUpdatedAt, local.UpdatedAt);
+
+        var localItems = ctx
+            .TodoListItem.Where(i => i.TodoListId == local.Id)
+            .OrderBy(i => i.Description)
+            .ToList();
+        Assert.Equal(2, localItems.Count);
+
+        Assert.Equal("First external", localItems[0].Description);
+        Assert.False(localItems[0].IsCompleted);
+        Assert.Equal(item1UpdatedAt, localItems[0].UpdatedAt);
+
+        Assert.Equal("Second external", localItems[1].Description);
+        Assert.True(localItems[1].IsCompleted);
+        Assert.Equal(item2UpdatedAt, localItems[1].UpdatedAt);
+
+        var listMapping = Assert.Single(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList).ToList()
+        );
+        Assert.Equal(local.Id, listMapping.LocalId);
+        Assert.Equal("ext-99", listMapping.ExternalId);
+        Assert.Null(listMapping.ParentExternalId);
+        Assert.Equal(listUpdatedAt, listMapping.LocalUpdatedAtAtSync);
+        Assert.Equal(listUpdatedAt, listMapping.ExternalUpdatedAtAtSync);
+
+        var itemMappings = ctx
+            .SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem)
+            .OrderBy(m => m.ExternalId)
+            .ToList();
+        Assert.Equal(2, itemMappings.Count);
+
+        Assert.Equal("ext-item-1", itemMappings[0].ExternalId);
+        Assert.Equal("ext-99", itemMappings[0].ParentExternalId);
+        Assert.Equal(localItems[0].Id, itemMappings[0].LocalId);
+        Assert.Equal(item1UpdatedAt, itemMappings[0].LocalUpdatedAtAtSync);
+        Assert.Equal(item1UpdatedAt, itemMappings[0].ExternalUpdatedAtAtSync);
+
+        Assert.Equal("ext-item-2", itemMappings[1].ExternalId);
+        Assert.Equal("ext-99", itemMappings[1].ParentExternalId);
+        Assert.Equal(localItems[1].Id, itemMappings[1].LocalId);
+        Assert.Equal(item2UpdatedAt, itemMappings[1].LocalUpdatedAtAtSync);
+        Assert.Equal(item2UpdatedAt, itemMappings[1].ExternalUpdatedAtAtSync);
+    }
+
+    [Fact]
     public async Task PullTodoListsAsync_ExternalWithLocalSourceIdNoMapping_AdoptsAsMapping()
     {
         await using var ctx = new TodoContext(NewDbOptions());

@@ -372,20 +372,30 @@ public class TodoListSyncService : ITodoListSyncService
 
     private async Task CreateLocalFromExternalAsync(ExternalTodoList external, CancellationToken ct)
     {
+        var embeddedItems = external
+            .Items.Select(ei => new EmbeddedExternalItem(
+                ei.Id,
+                ei.Description,
+                ei.Completed,
+                ei.UpdatedAt
+            ))
+            .ToList();
+
         await _db.ApplyExternalCreateAsync(
             new ApplyExternalCreatePlan(
                 external.Id,
                 external.Name,
                 external.UpdatedAt,
                 Guid.NewGuid(),
-                Array.Empty<EmbeddedExternalItem>()
+                embeddedItems
             ),
             ct
         );
         _logger.LogInformation(
-            "Pull created local TodoList from external {ExternalId} (Name={Name})",
+            "Pull created local TodoList from external {ExternalId} (Name={Name}, Items={ItemCount})",
             external.Id,
-            external.Name
+            external.Name,
+            embeddedItems.Count
         );
     }
 }
