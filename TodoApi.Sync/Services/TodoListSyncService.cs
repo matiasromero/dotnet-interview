@@ -1,6 +1,8 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TodoApi.Sync.Data;
 using TodoApi.Sync.External;
+using TodoApi.Sync.External.Models;
 using TodoApi.Sync.Models;
 
 namespace TodoApi.Sync.Services;
@@ -34,13 +36,63 @@ public class TodoListSyncService : ITodoListSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Slice 1 happy path: no candidates → Succeeded with zero counts.
+        var mappedLocalIds = await _db
+            .SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList)
+            .Select(m => m.LocalId)
+            .ToListAsync(cancellationToken);
+
+        var candidates = await _db.GetUnmappedTodoListsAsync(mappedLocalIds, cancellationToken);
+
+        int pushed = 0;
+        int failed = 0;
+
+        foreach (var local in candidates)
+        {
+            try
+            {
+                var external = await _client.CreateTodoListAsync(
+                    new CreateExternalTodoListRequest(
+                        SourceId: local.Id.ToString(),
+                        Name: local.Name,
+                        Items: Array.Empty<CreateExternalTodoItemRequest>()
+                    ),
+                    cancellationToken
+                );
+
+                _db.SyncMappings.Add(
+                    new SyncMapping
+                    {
+                        EntityType = SyncEntityType.TodoList,
+                        LocalId = local.Id,
+                        ExternalId = external.Id,
+                        LastSyncedAt = DateTime.UtcNow,
+                    }
+                );
+                await _db.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Pushed TodoList {LocalId} to external as {ExternalId}",
+                    local.Id,
+                    external.Id
+                );
+                pushed++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to push TodoList {LocalId}", local.Id);
+                failed++;
+            }
+        }
+
         run.FinishedAt = DateTime.UtcNow;
-        run.Status = SyncRunStatus.Succeeded;
-        run.ItemsProcessed = 0;
-        run.ItemsFailed = 0;
+        run.ItemsProcessed = pushed;
+        run.ItemsFailed = failed;
+        run.Status =
+            failed == 0
+                ? SyncRunStatus.Succeeded
+                : (pushed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return new SyncRunResult(0, 0, 0, SyncRunStatus.Succeeded);
+        return new SyncRunResult(candidates.Count, pushed, failed, run.Status);
     }
 }

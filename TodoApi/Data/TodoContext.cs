@@ -13,6 +13,16 @@ public class TodoContext : DbContext, ISyncDbContext
     public DbSet<SyncMapping> SyncMappings { get; set; } = null!;
     public DbSet<SyncRun> SyncRuns { get; set; } = null!;
 
+    public async Task<List<LocalTodoListRecord>> GetUnmappedTodoListsAsync(
+        IReadOnlyCollection<long> mappedIds,
+        CancellationToken cancellationToken = default
+    ) =>
+        await TodoList
+            .Where(l => !mappedIds.Contains(l.Id))
+            .OrderBy(l => l.Id)
+            .Select(l => new LocalTodoListRecord(l.Id, l.Name))
+            .ToListAsync(cancellationToken);
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
