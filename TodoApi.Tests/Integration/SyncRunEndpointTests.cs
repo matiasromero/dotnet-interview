@@ -15,7 +15,9 @@ public class SyncRunEndpointTests
     {
         using var wm = new WireMockFixture();
         wm.Server.Given(Request.Create().WithPath("/todolists").UsingGet())
-            .RespondWith(Response.Create().WithStatusCode(200).WithBodyAsJson(Array.Empty<object>()));
+            .RespondWith(
+                Response.Create().WithStatusCode(200).WithBodyAsJson(Array.Empty<object>())
+            );
 
         await using var factory = new TodoApiWebApplicationFactory(wm.Url);
         var client = factory.CreateClient();

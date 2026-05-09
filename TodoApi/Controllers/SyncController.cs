@@ -39,7 +39,8 @@ namespace TodoApi.Controllers
             );
 
             SyncRunResult listPull;
-            IReadOnlyList<ExternalListWithMapping> mappedExternals = Array.Empty<ExternalListWithMapping>();
+            IReadOnlyList<ExternalListWithMapping> mappedExternals =
+                Array.Empty<ExternalListWithMapping>();
             try
             {
                 var (result, mapped) = await _listSync.PullTodoListsAsync(cancellationToken);
@@ -68,7 +69,10 @@ namespace TodoApi.Controllers
             return Ok(new SyncRunResponse(listPush, itemPush, listPull, itemPull));
         }
 
-        private async Task<SyncRunResult> SafeAsync(Func<Task<SyncRunResult>> operation, string label)
+        private async Task<SyncRunResult> SafeAsync(
+            Func<Task<SyncRunResult>> operation,
+            string label
+        )
         {
             try
             {
