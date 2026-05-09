@@ -1,5 +1,7 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using TodoApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +17,9 @@ builder
         options.SwaggerDoc("v1", new OpenApiInfo { Title = "TodoApi", Version = "v1" });
     })
     .AddControllers();
+
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
