@@ -1,10 +1,55 @@
-# CLAUDE.md
+# CLAUDE.md — Crunchloop Senior Challenge
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guía para Claude Code (claude.ai/code) cuando trabaje en este repositorio. Este archivo combina **cómo trabajamos** (workspace) con la **guía táctica de .NET** (commands, arquitectura, testing). Las decisiones técnicas vivas en [`NOTES.md`](./NOTES.md); el contrato del spec en [`CHALLENGE.md`](./CHALLENGE.md).
+
+## Qué es este repo
+
+- Trabajo del **senior challenge de Crunchloop** (sync bidireccional con una API externa) — repo upstream del spec: <https://github.com/crunchloop/challenge-senior-engineer>.
+- **`./CHALLENGE.md`** — spec congelado, copia del README upstream. **No editar.** Si el upstream cambia, se baja de nuevo y se discute.
+- **`./NOTES.md`** — cuaderno de decisiones y tradeoffs. Append-mostly. Es el deliverable de documentación que pide el spec.
+- La implementación extiende el TodoApi que se construyó para la entrevista .NET previa.
+
+## Cómo trabajamos: slice por slice
+
+El spec se desarrolla en **slices** (rebanadas) chicas: una capacidad o un patrón por iteración, no la feature completa de un saque. El roadmap actual de slices vive como propuesta editable al pie de NOTES.md / Decision Log.
+
+Para cada slice:
+
+**Antes de tocar código**
+
+1. **Releer** la sección relevante de `CHALLENGE.md` y el `Decision Log` de `NOTES.md`. No contradecir decisiones previas sin discutirlo explícitamente con el usuario.
+2. **Verbalizar la intención** antes de prompt'ear o escribir: archivo target, qué patrón se espeja del código existente, qué NO hacemos en este slice. (Ver memoria `feedback_directing_ai`: el usuario prefiere "directing AI" sobre "vibecoding" — prompts dirigidos con restricciones explícitas, no aceptar output ciego.)
+3. Si el slice tiene **≥ 3 pasos no triviales**, invocar el skill `superpowers:writing-plans` y dejar el plan en `/Users/matiasromero/.claude/plans/<slug>.md`. Slices triviales (un archivo, un test) van directo.
+4. Si hay **diseño abierto** (qué librería, qué patrón, qué semántica), invocar `superpowers:brainstorming` antes de proponer implementación.
+
+**Durante la implementación**
+
+5. Aplicar **TDD** donde tenga sentido (`superpowers:test-driven-development`). El repo ya tiene patrón claro de xUnit + InMemory documentado abajo; espejarlo.
+6. Cambios chicos y dirigidos: un archivo o una capa por turno. Nada de "feature completa one-shot".
+7. Mostrar el diff explícito y llamar la atención sobre judgment calls: "usé X porque Y, alternativa Z descartada porque…".
+
+**Cuando el slice cierra**
+
+8. Verificar con evidencia (`superpowers:verification-before-completion`):
+   - `dotnet test` — todos verde.
+   - `dotnet csharpier --check .` — no formatting drift (el CI del repo upstream falla si formatea mal).
+   - Output a la vista antes de declarar éxito.
+9. Apendear al **Decision Log de `NOTES.md`** una entrada con: fecha, slice, decisión, alternativas descartadas, por qué, supuestos nuevos, deuda anotada. Si el slice tocó alguna sección formal (Resilience, Edge Cases, Assumptions), actualizar también esa sección.
+10. Solo después: commit.
+
+## Reglas duras
+
+- **`CHALLENGE.md` es inmutable.** Es el contrato upstream. No se edita ni siquiera para corregir typos: si está mal, se discute y se documenta el desvío en `NOTES.md`.
+- **`NOTES.md` es append-mostly.** Editar entradas pasadas solo para corregir errores factuales. Cambios de criterio se registran como entrada nueva con `**Supersedes:** YYYY-MM-DD <título>`.
+
+## Idioma
+
+- Discusión técnica y conceptual: **castellano argentino**.
+- Código, identificadores, comandos, nombres de archivos, mensajes de commit: **inglés natural**.
 
 ## Commands
 
-All commands run from the `dotnet-interview/` directory.
+All commands run from this directory (the project root).
 
 - Build: `dotnet build`
 - Run the API (dev): `dotnet run --project TodoApi` — Swagger UI at `/swagger`, EF migrations are applied automatically on startup in Development.
@@ -43,3 +88,11 @@ SQL Server 2022 via the devcontainer (`.devcontainer/docker-compose.yml`). The c
 - Tests instantiate services and controllers directly (no `WebApplicationFactory`, no HTTP); use `NullLogger<T>.Instance` for the logger dependency.
 - A `PopulateDatabaseContext` helper at the top of each test class seeds fixtures with hardcoded IDs (1, 2, 3…) — follow the same shape when adding tests so other readers can scan quickly.
 - The InMemory provider does **not** enforce relational constraints (cascade delete, FK validation), so exercise parent/child semantics through service code, not by relying on the DB to refuse bad writes.
+
+## Skills relevantes (referencia rápida)
+
+- `superpowers:brainstorming` — antes de cualquier diseño abierto.
+- `superpowers:writing-plans` — slices con ≥ 3 pasos no triviales.
+- `superpowers:test-driven-development` — implementación.
+- `superpowers:verification-before-completion` — antes de declarar un slice cerrado.
+- `superpowers:executing-plans` — si un slice tiene plan formal y se ejecuta en sesión separada.
