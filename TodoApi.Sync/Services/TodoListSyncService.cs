@@ -49,7 +49,13 @@ public class TodoListSyncService : ITodoListSyncService
                     new CreateExternalTodoListRequest(
                         SourceId: local.Id.ToString(),
                         Name: local.Name,
-                        Items: Array.Empty<CreateExternalTodoItemRequest>()
+                        Items: local
+                            .Items.Select(i => new CreateExternalTodoItemRequest(
+                                i.Id.ToString(),
+                                i.Description,
+                                i.IsCompleted
+                            ))
+                            .ToList()
                     ),
                     idempotencyKey,
                     cancellationToken
@@ -68,6 +74,47 @@ public class TodoListSyncService : ITodoListSyncService
                     }
                 );
                 await _db.SaveChangesAsync(cancellationToken);
+
+                if (external.Items.Count > 0)
+                {
+                    var embeddedMappings = new List<EmbeddedItemMapping>();
+                    foreach (var ei in external.Items)
+                    {
+                        if (!long.TryParse(ei.SourceId, out var localItemId))
+                        {
+                            _logger.LogWarning(
+                                "External item {ExtId} returned with non-parseable source_id; skipping mapping",
+                                ei.Id
+                            );
+                            continue;
+                        }
+                        var localItem = local.Items.SingleOrDefault(li => li.Id == localItemId);
+                        if (localItem is null)
+                        {
+                            _logger.LogWarning(
+                                "External item {ExtId} source_id {SourceId} does not match any pushed local item",
+                                ei.Id,
+                                ei.SourceId
+                            );
+                            continue;
+                        }
+                        embeddedMappings.Add(
+                            new EmbeddedItemMapping(
+                                localItemId,
+                                ei.Id,
+                                localItem.UpdatedAt,
+                                ei.UpdatedAt
+                            )
+                        );
+                    }
+                    if (embeddedMappings.Count > 0)
+                    {
+                        await _db.PersistEmbeddedItemMappingsAsync(
+                            new PersistEmbeddedItemMappingsPlan(external.Id, embeddedMappings),
+                            cancellationToken
+                        );
+                    }
+                }
 
                 _logger.LogInformation(
                     "Pushed TodoList {LocalId} to external as {ExternalId} with IdempotencyKey {IdempotencyKey}",

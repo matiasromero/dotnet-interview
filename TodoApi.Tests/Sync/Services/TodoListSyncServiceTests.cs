@@ -249,6 +249,204 @@ public class TodoListSyncServiceTests
         Assert.NotNull(run.FinishedAt);
     }
 
+    [Fact]
+    public async Task PushTodoListsAsync_ListWithLocalItems_PostsEmbeddedAndPersistsItemMappings()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var listUpdatedAt = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+        var item1UpdatedAt = new DateTime(2026, 5, 9, 10, 1, 0, DateTimeKind.Utc);
+        var item2UpdatedAt = new DateTime(2026, 5, 9, 10, 2, 0, DateTimeKind.Utc);
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "List with items",
+                UpdatedAt = listUpdatedAt,
+                Items = new List<TodoApi.Models.TodoListItem>
+                {
+                    new()
+                    {
+                        Id = 10,
+                        Description = "First",
+                        IsCompleted = false,
+                        TodoListId = 1,
+                        UpdatedAt = item1UpdatedAt,
+                    },
+                    new()
+                    {
+                        Id = 11,
+                        Description = "Second",
+                        IsCompleted = true,
+                        TodoListId = 1,
+                        UpdatedAt = item2UpdatedAt,
+                    },
+                },
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var ext1UpdatedAt = new DateTime(2026, 5, 9, 11, 0, 0, DateTimeKind.Utc);
+        var ext2UpdatedAt = new DateTime(2026, 5, 9, 11, 1, 0, DateTimeKind.Utc);
+        var listExtUpdatedAt = new DateTime(2026, 5, 9, 11, 2, 0, DateTimeKind.Utc);
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.Is<CreateExternalTodoListRequest>(r =>
+                        r.SourceId == "1"
+                        && r.Name == "List with items"
+                        && r.Items.Count == 2
+                        && r.Items.Any(i =>
+                            i.SourceId == "10" && i.Description == "First" && i.Completed == false
+                        )
+                        && r.Items.Any(i =>
+                            i.SourceId == "11" && i.Description == "Second" && i.Completed == true
+                        )
+                    ),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                new ExternalTodoList(
+                    Id: "ext-1",
+                    SourceId: "1",
+                    Name: "List with items",
+                    CreatedAt: listExtUpdatedAt,
+                    UpdatedAt: listExtUpdatedAt,
+                    Items: new[]
+                    {
+                        new ExternalTodoItem(
+                            Id: "ext-item-10",
+                            SourceId: "10",
+                            Description: "First",
+                            Completed: false,
+                            CreatedAt: ext1UpdatedAt,
+                            UpdatedAt: ext1UpdatedAt
+                        ),
+                        new ExternalTodoItem(
+                            Id: "ext-item-11",
+                            SourceId: "11",
+                            Description: "Second",
+                            Completed: true,
+                            CreatedAt: ext2UpdatedAt,
+                            UpdatedAt: ext2UpdatedAt
+                        ),
+                    }
+                )
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        var listMapping = Assert.Single(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList).ToList()
+        );
+        Assert.Equal(1L, listMapping.LocalId);
+        Assert.Equal("ext-1", listMapping.ExternalId);
+        Assert.Equal(listUpdatedAt, listMapping.LocalUpdatedAtAtSync);
+        Assert.Equal(listExtUpdatedAt, listMapping.ExternalUpdatedAtAtSync);
+
+        var itemMappings = ctx
+            .SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem)
+            .OrderBy(m => m.LocalId)
+            .ToList();
+        Assert.Equal(2, itemMappings.Count);
+
+        Assert.Equal(10L, itemMappings[0].LocalId);
+        Assert.Equal("ext-item-10", itemMappings[0].ExternalId);
+        Assert.Equal("ext-1", itemMappings[0].ParentExternalId);
+        Assert.Equal(item1UpdatedAt, itemMappings[0].LocalUpdatedAtAtSync);
+        Assert.Equal(ext1UpdatedAt, itemMappings[0].ExternalUpdatedAtAtSync);
+
+        Assert.Equal(11L, itemMappings[1].LocalId);
+        Assert.Equal("ext-item-11", itemMappings[1].ExternalId);
+        Assert.Equal("ext-1", itemMappings[1].ParentExternalId);
+        Assert.Equal(item2UpdatedAt, itemMappings[1].LocalUpdatedAtAtSync);
+        Assert.Equal(ext2UpdatedAt, itemMappings[1].ExternalUpdatedAtAtSync);
+
+        client.Verify(
+            c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_ListWithoutLocalItems_PostsEmptyItemsArray()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "Empty list" });
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.Is<CreateExternalTodoListRequest>(r =>
+                        r.SourceId == "1" && r.Name == "Empty list" && r.Items.Count == 0
+                    ),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                (CreateExternalTodoListRequest req, Guid _, CancellationToken __) =>
+                    new ExternalTodoList(
+                        Id: $"ext-{req.SourceId}",
+                        SourceId: req.SourceId,
+                        Name: req.Name,
+                        CreatedAt: DateTime.UtcNow,
+                        UpdatedAt: DateTime.UtcNow,
+                        Items: Array.Empty<ExternalTodoItem>()
+                    )
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        var listMapping = Assert.Single(ctx.SyncMappings);
+        Assert.Equal(SyncEntityType.TodoList, listMapping.EntityType);
+        Assert.Equal(1L, listMapping.LocalId);
+        Assert.Empty(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem).ToList()
+        );
+
+        client.Verify(
+            c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
+    }
+
     private static ExternalTodoList ExternalListAt(
         string id,
         string? sourceId,
