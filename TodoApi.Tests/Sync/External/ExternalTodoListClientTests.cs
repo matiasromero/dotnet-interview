@@ -44,4 +44,51 @@ public class ExternalTodoListClientTests
         Assert.Equal("Groceries", sentJson.GetProperty("name").GetString());
         Assert.Equal(0, sentJson.GetProperty("items").GetArrayLength());
     }
+
+    [Fact]
+    public async Task CreateTodoListAsync_4xxResponse_ThrowsExternalApiExceptionWithStatusCode()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.BadRequest, "{\"error\":\"bad\"}");
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var ex = await Assert.ThrowsAsync<ExternalApiException>(
+            () =>
+                client.CreateTodoListAsync(
+                    new CreateExternalTodoListRequest(
+                        "1",
+                        "x",
+                        Array.Empty<CreateExternalTodoItemRequest>()
+                    ),
+                    CancellationToken.None
+                )
+        );
+
+        Assert.Equal(400, ex.StatusCode);
+        Assert.Equal("POST", ex.Method);
+        Assert.Equal("todolists", ex.Path);
+        Assert.Contains("bad", ex.Body);
+    }
+
+    [Fact]
+    public async Task CreateTodoListAsync_5xxResponse_ThrowsExternalApiException()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.InternalServerError, null);
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var ex = await Assert.ThrowsAsync<ExternalApiException>(
+            () =>
+                client.CreateTodoListAsync(
+                    new CreateExternalTodoListRequest(
+                        "1",
+                        "x",
+                        Array.Empty<CreateExternalTodoItemRequest>()
+                    ),
+                    CancellationToken.None
+                )
+        );
+
+        Assert.Equal(500, ex.StatusCode);
+    }
 }
