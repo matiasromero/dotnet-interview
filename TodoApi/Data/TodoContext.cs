@@ -14,11 +14,12 @@ public class TodoContext : DbContext, ISyncDbContext
     public DbSet<SyncRun> SyncRuns { get; set; } = null!;
 
     public async Task<List<LocalTodoListRecord>> GetUnmappedTodoListsAsync(
-        IReadOnlyCollection<long> mappedIds,
         CancellationToken cancellationToken = default
     ) =>
         await TodoList
-            .Where(l => !mappedIds.Contains(l.Id))
+            .Where(l =>
+                !SyncMappings.Any(m => m.EntityType == SyncEntityType.TodoList && m.LocalId == l.Id)
+            )
             .OrderBy(l => l.Id)
             .Select(l => new LocalTodoListRecord(l.Id, l.Name))
             .ToListAsync(cancellationToken);

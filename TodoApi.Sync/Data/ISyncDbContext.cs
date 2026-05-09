@@ -10,11 +10,10 @@ public interface ISyncDbContext
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns all local TodoLists whose IDs are not in the given set of already-mapped IDs.
+    /// Returns all local TodoLists that have no SyncMapping for SyncEntityType.TodoList.
     /// Ordered by Id ascending.
     /// </summary>
     Task<List<LocalTodoListRecord>> GetUnmappedTodoListsAsync(
-        IReadOnlyCollection<long> mappedIds,
         CancellationToken cancellationToken = default
     );
 }

@@ -55,7 +55,7 @@ public class TodoListSyncServiceTests
         );
         await ctx.SaveChangesAsync();
 
-        var client = new Mock<IExternalTodoListClient>();
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
         client
             .Setup(c =>
                 c.CreateTodoListAsync(

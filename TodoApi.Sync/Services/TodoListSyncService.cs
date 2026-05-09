@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TodoApi.Sync.Data;
 using TodoApi.Sync.External;
@@ -36,12 +35,7 @@ public class TodoListSyncService : ITodoListSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
-        var mappedLocalIds = await _db
-            .SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList)
-            .Select(m => m.LocalId)
-            .ToListAsync(cancellationToken);
-
-        var candidates = await _db.GetUnmappedTodoListsAsync(mappedLocalIds, cancellationToken);
+        var candidates = await _db.GetUnmappedTodoListsAsync(cancellationToken);
 
         int pushed = 0;
         int failed = 0;
