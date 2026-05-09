@@ -74,6 +74,7 @@ public static class SyncServiceCollectionExtensions
             );
 
         services.AddScoped<ITodoListSyncService, TodoListSyncService>();
+        services.AddScoped<ITodoListItemSyncService, TodoListItemSyncService>();
         services.AddHostedService<SyncBackgroundService>();
 
         return services;

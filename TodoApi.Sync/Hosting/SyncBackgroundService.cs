@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TodoApi.Sync.Configuration;
+using TodoApi.Sync.Models;
 using TodoApi.Sync.Services;
 
 namespace TodoApi.Sync.Hosting;
@@ -46,17 +47,18 @@ public sealed class SyncBackgroundService : BackgroundService
         {
             using (var scope = _scopes.CreateScope())
             {
-                var svc = scope.ServiceProvider.GetRequiredService<ITodoListSyncService>();
+                var listSync = scope.ServiceProvider.GetRequiredService<ITodoListSyncService>();
+                var itemSync = scope.ServiceProvider.GetRequiredService<ITodoListItemSyncService>();
 
                 try
                 {
-                    var pushResult = await svc.PushTodoListsAsync(stoppingToken);
+                    var pushList = await listSync.PushTodoListsAsync(stoppingToken);
                     _logger.LogInformation(
-                        "Sync push tick: total={Total} pushed={Pushed} failed={Failed} status={Status}",
-                        pushResult.Total,
-                        pushResult.Pushed,
-                        pushResult.Failed,
-                        pushResult.Status
+                        "Sync list push tick: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        pushList.Total,
+                        pushList.Pushed,
+                        pushList.Failed,
+                        pushList.Status
                     );
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -65,18 +67,18 @@ public sealed class SyncBackgroundService : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Sync push tick threw — continuing with pull");
+                    _logger.LogError(ex, "Sync list push tick threw — continuing with item push");
                 }
 
                 try
                 {
-                    var (pullResult, _) = await svc.PullTodoListsAsync(stoppingToken);
+                    var pushItem = await itemSync.PushTodoListItemsAsync(stoppingToken);
                     _logger.LogInformation(
-                        "Sync pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
-                        pullResult.Total,
-                        pullResult.Pushed,
-                        pullResult.Failed,
-                        pullResult.Status
+                        "Sync item push tick: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        pushItem.Total,
+                        pushItem.Pushed,
+                        pushItem.Failed,
+                        pushItem.Status
                     );
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -85,7 +87,59 @@ public sealed class SyncBackgroundService : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Sync pull tick threw — will retry on next interval");
+                    _logger.LogError(ex, "Sync item push tick threw — continuing with list pull");
+                }
+
+                IReadOnlyList<ExternalListWithMapping> mappedExternals =
+                    Array.Empty<ExternalListWithMapping>();
+                try
+                {
+                    var (pullList, mes) = await listSync.PullTodoListsAsync(stoppingToken);
+                    mappedExternals = mes;
+                    _logger.LogInformation(
+                        "Sync list pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
+                        pullList.Total,
+                        pullList.Pushed,
+                        pullList.Failed,
+                        pullList.Status
+                    );
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Sync list pull tick threw — continuing with item pull");
+                }
+
+                if (mappedExternals.Count > 0)
+                {
+                    try
+                    {
+                        var pullItem = await itemSync.PullTodoListItemsAsync(
+                            mappedExternals,
+                            stoppingToken
+                        );
+                        _logger.LogInformation(
+                            "Sync item pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
+                            pullItem.Total,
+                            pullItem.Pushed,
+                            pullItem.Failed,
+                            pullItem.Status
+                        );
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "Sync item pull tick threw — will retry on next interval"
+                        );
+                    }
                 }
             }
 
