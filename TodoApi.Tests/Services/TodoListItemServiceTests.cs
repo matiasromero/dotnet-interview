@@ -31,6 +31,7 @@ public class TodoListItemServiceTests
                 Description = "Item 1",
                 IsCompleted = false,
                 TodoListId = 1,
+                UpdatedAt = DateTime.UtcNow,
             }
         );
 
@@ -41,6 +42,7 @@ public class TodoListItemServiceTests
                 Description = "Item 2",
                 IsCompleted = true,
                 TodoListId = 1,
+                UpdatedAt = DateTime.UtcNow,
             }
         );
 
@@ -51,6 +53,7 @@ public class TodoListItemServiceTests
                 Description = "Item 3",
                 IsCompleted = false,
                 TodoListId = 2,
+                UpdatedAt = DateTime.UtcNow,
             }
         );
 
@@ -171,6 +174,7 @@ public class TodoListItemServiceTests
             Assert.False(result.IsCompleted);
             Assert.Equal(1, result.TodoListId);
             Assert.Equal(4, context.TodoListItem.Count());
+            Assert.True(result.UpdatedAt > DateTime.MinValue);
         }
     }
 
@@ -207,12 +211,16 @@ public class TodoListItemServiceTests
             );
             var dto = new UpdateTodoListItem { Description = "Updated Item 1", IsCompleted = true };
 
+            var existing = await context.TodoListItem.FindAsync(1L);
+            var before = existing.UpdatedAt;
+
             var result = await service.UpdateAsync(1, 1, dto);
 
             Assert.True(result);
             var updated = await context.TodoListItem.FindAsync(1L);
             Assert.Equal("Updated Item 1", updated.Description);
             Assert.True(updated.IsCompleted);
+            Assert.True(updated.UpdatedAt >= before);
         }
     }
 

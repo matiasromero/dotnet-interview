@@ -55,6 +55,7 @@ public class TodoListItemService : ITodoListItemService
             Description = dto.Description,
             TodoListId = todoListId,
             IsCompleted = false,
+            UpdatedAt = DateTime.UtcNow,
         };
 
         _context.TodoListItem.Add(item);
@@ -92,6 +93,7 @@ public class TodoListItemService : ITodoListItemService
 
         item.Description = dto.Description;
         item.IsCompleted = dto.IsCompleted;
+        item.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         _logger.LogInformation(
             "Updated TodoListItem {ItemId} in TodoList {TodoListId}",
