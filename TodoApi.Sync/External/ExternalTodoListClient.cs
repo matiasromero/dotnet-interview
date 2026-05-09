@@ -128,4 +128,68 @@ public class ExternalTodoListClient : IExternalTodoListClient
                 null
             );
     }
+
+    public async Task<ExternalTodoItem> UpdateTodoItemAsync(
+        string externalListId,
+        string externalItemId,
+        UpdateExternalTodoItemRequest request,
+        CancellationToken cancellationToken
+    )
+    {
+        var path = $"{TodoListsPath}/{externalListId}/todoitems/{externalItemId}";
+        using var message = new HttpRequestMessage(HttpMethod.Patch, path)
+        {
+            Content = JsonContent.Create(request, options: ExternalJsonOptions.Default),
+        };
+
+        using var response = await _http.SendAsync(message, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ExternalApiException(
+                $"PATCH {path} failed with {(int)response.StatusCode}",
+                (int)response.StatusCode,
+                "PATCH",
+                path,
+                body
+            );
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<ExternalTodoItem>(
+            ExternalJsonOptions.Default,
+            cancellationToken
+        );
+
+        return result
+            ?? throw new ExternalApiException(
+                $"PATCH {path} returned empty body",
+                (int)response.StatusCode,
+                "PATCH",
+                path,
+                null
+            );
+    }
+
+    public async Task DeleteTodoItemAsync(
+        string externalListId,
+        string externalItemId,
+        CancellationToken cancellationToken
+    )
+    {
+        var path = $"{TodoListsPath}/{externalListId}/todoitems/{externalItemId}";
+        using var response = await _http.DeleteAsync(path, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ExternalApiException(
+                $"DELETE {path} failed with {(int)response.StatusCode}",
+                (int)response.StatusCode,
+                "DELETE",
+                path,
+                body
+            );
+        }
+    }
 }

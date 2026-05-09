@@ -17,4 +17,17 @@ public interface IExternalTodoListClient
         UpdateExternalTodoListRequest request,
         CancellationToken cancellationToken
     );
+
+    Task<ExternalTodoItem> UpdateTodoItemAsync(
+        string externalListId,
+        string externalItemId,
+        UpdateExternalTodoItemRequest request,
+        CancellationToken cancellationToken
+    );
+
+    Task DeleteTodoItemAsync(
+        string externalListId,
+        string externalItemId,
+        CancellationToken cancellationToken
+    );
 }

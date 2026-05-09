@@ -250,4 +250,120 @@ public class ExternalTodoListClientTests
         Assert.Equal("todolists/ext-missing", ex.Path);
         Assert.Contains("missing", ex.Body);
     }
+
+    [Fact]
+    public async Task UpdateTodoItemAsync_HappyPath_PatchesAndDeserializesResponse()
+    {
+        var responseJson = """
+            {
+              "id": "itm-9",
+              "source_id": "42",
+              "description": "updated",
+              "completed": true,
+              "created_at": "2026-05-08T10:00:00Z",
+              "updated_at": "2026-05-09T12:34:56Z"
+            }
+            """;
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK, responseJson);
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var result = await client.UpdateTodoItemAsync(
+            "lst-1",
+            "itm-9",
+            new UpdateExternalTodoItemRequest("updated", true),
+            CancellationToken.None
+        );
+
+        Assert.Equal("itm-9", result.Id);
+        Assert.Equal("updated", result.Description);
+        Assert.True(result.Completed);
+        Assert.Equal(new DateTime(2026, 5, 9, 12, 34, 56, DateTimeKind.Utc), result.UpdatedAt);
+        Assert.Equal(DateTimeKind.Utc, result.UpdatedAt.Kind);
+
+        var sent = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Patch, sent.Method);
+        Assert.EndsWith("/todolists/lst-1/todoitems/itm-9", sent.RequestUri!.AbsolutePath);
+
+        var sentJson = JsonDocument.Parse(handler.RequestBodies[0]).RootElement;
+        Assert.Equal("updated", sentJson.GetProperty("description").GetString());
+        Assert.True(sentJson.GetProperty("completed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task UpdateTodoItemAsync_404Response_ThrowsExternalApiException()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.NotFound, "not found");
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var ex = await Assert.ThrowsAsync<ExternalApiException>(
+            () =>
+                client.UpdateTodoItemAsync(
+                    "lst-1",
+                    "itm-9",
+                    new UpdateExternalTodoItemRequest("x", false),
+                    CancellationToken.None
+                )
+        );
+
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Equal("PATCH", ex.Method);
+        Assert.EndsWith("todolists/lst-1/todoitems/itm-9", ex.Path);
+        Assert.Equal("not found", ex.Body);
+    }
+
+    [Fact]
+    public async Task UpdateTodoItemAsync_EmptyBody_ThrowsExternalApiException()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.OK, "null");
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var ex = await Assert.ThrowsAsync<ExternalApiException>(
+            () =>
+                client.UpdateTodoItemAsync(
+                    "lst-1",
+                    "itm-9",
+                    new UpdateExternalTodoItemRequest("x", false),
+                    CancellationToken.None
+                )
+        );
+
+        Assert.Contains("empty body", ex.Message);
+        Assert.Equal("PATCH", ex.Method);
+    }
+
+    [Fact]
+    public async Task DeleteTodoItemAsync_HappyPath_Returns204_NoThrow()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.NoContent, null);
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        await client.DeleteTodoItemAsync("lst-1", "itm-9", CancellationToken.None);
+
+        var sent = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Delete, sent.Method);
+        Assert.EndsWith("/todolists/lst-1/todoitems/itm-9", sent.RequestUri!.AbsolutePath);
+    }
+
+    [Fact]
+    public async Task DeleteTodoItemAsync_404Response_ThrowsExternalApiException()
+    {
+        var handler = new StubHttpMessageHandler(
+            HttpStatusCode.NotFound,
+            "{\"error\":\"missing\"}"
+        );
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var ex = await Assert.ThrowsAsync<ExternalApiException>(
+            () => client.DeleteTodoItemAsync("lst-1", "itm-9", CancellationToken.None)
+        );
+
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Equal("DELETE", ex.Method);
+        Assert.EndsWith("todolists/lst-1/todoitems/itm-9", ex.Path);
+    }
 }
