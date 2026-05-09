@@ -1,6 +1,6 @@
 namespace TodoApi.Sync.External;
 
-public class ExternalApiException : Exception
+public sealed class ExternalApiException : Exception
 {
     public int? StatusCode { get; }
     public string? Method { get; }
