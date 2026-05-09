@@ -689,7 +689,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(0, result.Total);
         Assert.Equal(0, result.Pushed);
@@ -719,7 +719,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(1, result.Total);
         Assert.Equal(1, result.Pushed);
@@ -764,7 +764,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -818,7 +818,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -891,7 +891,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -956,7 +956,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -1025,7 +1025,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -1083,7 +1083,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -1140,7 +1140,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
@@ -1223,7 +1223,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(3, result.Total);
         Assert.Equal(2, result.Pushed);
@@ -1251,7 +1251,7 @@ public class TodoListSyncServiceTests
             NullLogger<TodoListSyncService>.Instance
         );
 
-        var result = await sut.PullTodoListsAsync(CancellationToken.None);
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Failed, result.Status);
         Assert.Equal(0, result.Pushed);

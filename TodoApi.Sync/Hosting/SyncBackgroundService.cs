@@ -70,7 +70,7 @@ public sealed class SyncBackgroundService : BackgroundService
 
                 try
                 {
-                    var pullResult = await svc.PullTodoListsAsync(stoppingToken);
+                    var (pullResult, _) = await svc.PullTodoListsAsync(stoppingToken);
                     _logger.LogInformation(
                         "Sync pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
                         pullResult.Total,

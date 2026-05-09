@@ -148,7 +148,10 @@ public class TodoListSyncService : ITodoListSyncService
         return new SyncRunResult(candidates.Count, pushed, failed, run.Status);
     }
 
-    public async Task<SyncRunResult> PullTodoListsAsync(CancellationToken cancellationToken)
+    public async Task<(
+        SyncRunResult Result,
+        IReadOnlyList<ExternalListWithMapping> MappedExternals
+    )> PullTodoListsAsync(CancellationToken cancellationToken)
     {
         var run = new SyncRun
         {
@@ -159,6 +162,8 @@ public class TodoListSyncService : ITodoListSyncService
         };
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
+
+        var mappedExternals = new List<ExternalListWithMapping>();
 
         IReadOnlyList<ExternalTodoList> externals;
         try
@@ -173,7 +178,7 @@ public class TodoListSyncService : ITodoListSyncService
             run.ItemsFailed = 0;
             run.Status = SyncRunStatus.Failed;
             await _db.SaveChangesAsync(cancellationToken);
-            return new SyncRunResult(0, 0, 0, SyncRunStatus.Failed);
+            return (new SyncRunResult(0, 0, 0, SyncRunStatus.Failed), mappedExternals);
         }
 
         var mappedByExternalId = (
@@ -190,6 +195,9 @@ public class TodoListSyncService : ITodoListSyncService
                 if (mappedByExternalId.TryGetValue(external.Id, out var mapped))
                 {
                     await ReconcileMappedAsync(external, mapped, cancellationToken);
+                    mappedExternals.Add(
+                        new ExternalListWithMapping(external, mapped.LocalId, external.Id)
+                    );
                 }
                 else if (
                     long.TryParse(external.SourceId, out var sourceLocalId)
@@ -198,6 +206,9 @@ public class TodoListSyncService : ITodoListSyncService
                 )
                 {
                     await AdoptOrphanAsync(orphan, external, cancellationToken);
+                    mappedExternals.Add(
+                        new ExternalListWithMapping(external, orphan.Id, external.Id)
+                    );
                 }
                 else
                 {
@@ -227,7 +238,7 @@ public class TodoListSyncService : ITodoListSyncService
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return new SyncRunResult(externals.Count, processed, failed, run.Status);
+        return (new SyncRunResult(externals.Count, processed, failed, run.Status), mappedExternals);
     }
 
     private async Task ReconcileMappedAsync(
