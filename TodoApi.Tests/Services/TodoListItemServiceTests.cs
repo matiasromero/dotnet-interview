@@ -214,13 +214,18 @@ public class TodoListItemServiceTests
             var existing = await context.TodoListItem.FindAsync(1L);
             var before = existing.UpdatedAt;
 
+            // Force the post-Update timestamp to be strictly greater than the seeded one.
+            // Without this, the InMemory clock resolution can produce equal timestamps
+            // and `>=` would pass even if the service forgot to bump UpdatedAt.
+            Thread.Sleep(1);
+
             var result = await service.UpdateAsync(1, 1, dto);
 
             Assert.True(result);
             var updated = await context.TodoListItem.FindAsync(1L);
             Assert.Equal("Updated Item 1", updated.Description);
             Assert.True(updated.IsCompleted);
-            Assert.True(updated.UpdatedAt >= before);
+            Assert.True(updated.UpdatedAt > before);
         }
     }
 
