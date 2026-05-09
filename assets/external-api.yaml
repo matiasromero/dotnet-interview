@@ -1,0 +1,234 @@
+openapi: 3.0.3
+info:
+  title: External Todo API
+  description: API for managing TodoLists and TodoItems.
+  version: 1.0.0
+paths:
+  /todolists:
+    get:
+      tags:
+        - TodoList
+      summary: Fetch all TodoLists and their items
+      description: Retrieves all TodoLists along with their associated TodoItems.
+      operationId: listTodoLists
+      responses:
+        '200':
+          description: A list of TodoLists with their items.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TodoList'
+    post:
+      tags:
+        - TodoList
+      summary: Create a new TodoList with items
+      description: Creates a new TodoList along with associated TodoItems.
+      operationId: createTodoList
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTodoListBody'
+      responses:
+        '201':
+          description: The newly created TodoList with its items.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoList'
+  /todolists/{todolistId}:
+    patch:
+      tags:
+        - TodoList
+      summary: Update a TodoList
+      description: Updates an existing TodoList.
+      operationId: updateTodoList
+      parameters:
+        - name: todolistId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the TodoList to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoListBody'
+      responses:
+        '200':
+          description: The updated TodoList.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoList'
+    delete:
+      tags:
+        - TodoList
+      summary: Delete a TodoList and its items
+      description: Deletes an existing TodoList and all its associated TodoItems.
+      operationId: deleteTodoList
+      parameters:
+        - name: todolistId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the TodoList to delete.
+      responses:
+        '204':
+          description: No content, indicating successful deletion.
+  /todolists/{todolistId}/todoitems/{todoitemId}:
+    patch:
+      tags:
+        - TodoItem
+      summary: Update a TodoItem
+      description: Updates an existing TodoItem within a specific TodoList.
+      operationId: updateTodoItem
+      parameters:
+        - name: todolistId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the TodoList containing the TodoItem.
+        - name: todoitemId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the TodoItem to update.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTodoItemBody'
+      responses:
+        '200':
+          description: The updated TodoItem.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TodoItem'
+    delete:
+      tags:
+        - TodoItem
+      summary: Delete a TodoItem
+      description: Deletes an existing TodoItem within a specific TodoList.
+      operationId: deleteTodoItem
+      parameters:
+        - name: todolistId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the TodoList containing the TodoItem.
+        - name: todoitemId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The unique identifier of the TodoItem to delete.
+      responses:
+        '204':
+          description: No content, indicating successful deletion.
+components:
+  schemas:
+    TodoList:
+      type: object
+      properties:
+        id:
+          type: string
+          description: A unique identifier for the list.
+        source_id:
+          type: string
+          description: The unique identifier of the source system.
+        name:
+          type: string
+          description: The name of the list.
+        created_at:
+          type: string
+          format: date-time
+          description: The timestamp when the list was created.
+        updated_at:
+          type: string
+          format: date-time
+          description: The timestamp when the list was last updated.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TodoItem'
+
+    TodoItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: A unique identifier for the item.
+        source_id:
+          type: string
+          description: The unique identifier of the source system.
+        description:
+          type: string
+          description: The description of the item.
+        completed:
+          type: boolean
+          description: Indicates whether the item is completed.
+        created_at:
+          type: string
+          format: date-time
+          description: The timestamp when the item was created.
+        updated_at:
+          type: string
+          format: date-time
+          description: The timestamp when the item was last updated.
+
+    CreateTodoListBody:
+      type: object
+      properties:
+        source_id:
+          type: string
+          description: The unique identifier of the source system.
+        name:
+          type: string
+          description: The name of the new TodoList.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CreateTodoItemBody'
+          description: An optional list of TodoItems to create with the TodoList.
+
+    UpdateTodoListBody:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The updated name of the TodoList.
+
+    CreateTodoItemBody:
+      type: object
+      properties:
+        source_id:
+          type: string
+          description: The unique identifier of the source system.
+        description:
+          type: string
+          description: The description of the item.
+        completed:
+          type: boolean
+          description: Indicates whether the item is completed.
+
+    UpdateTodoItemBody:
+      type: object
+      properties:
+        description:
+          type: string
+          description: The updated description of the item.
+        completed:
+          type: boolean
+          description: Indicates whether the item is completed.
