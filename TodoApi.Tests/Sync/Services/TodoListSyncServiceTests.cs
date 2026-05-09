@@ -2351,4 +2351,49 @@ public class TodoListSyncServiceTests
         var remaining = Assert.Single(ctx.SyncMappings);
         Assert.Equal("ext-2", remaining.ExternalId);
     }
+
+    [Fact]
+    public async Task PullTodoListsAsync_ExternalSourceIdPointsToDeletedLocal_FallsToCaseC()
+    {
+        // Edge case (NOTES.md line 117): external entry has source_id="99" but local
+        // Id=99 was deleted and its mapping already cleaned up. FindUnmappedLocalByIdAsync
+        // returns null, so the pull falls to CASO C and creates a new local with a
+        // different (auto-incremented) Id.
+        await using var ctx = new TodoContext(NewDbOptions());
+
+        // Seed an unrelated list so the auto-increment starts above 1.
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "Survivor",
+                UpdatedAt = DateTime.UtcNow,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { ExternalListAt("ext-zz", "99", "Recovered", DateTime.UtcNow) });
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        var lists = ctx.TodoList.OrderBy(l => l.Id).ToList();
+        Assert.Equal(2, lists.Count);
+
+        var recovered = lists.Single(l => l.Name == "Recovered");
+        Assert.NotEqual(99L, recovered.Id);
+
+        var mapping = Assert.Single(ctx.SyncMappings.Where(m => m.ExternalId == "ext-zz"));
+        Assert.Equal(recovered.Id, mapping.LocalId);
+    }
 }
