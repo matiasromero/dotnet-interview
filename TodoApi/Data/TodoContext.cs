@@ -336,6 +336,79 @@ public class TodoContext : DbContext, ISyncDbContext
         await SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<List<OrphanedListMapping>> GetOrphanedListMappingsAsync(
+        CancellationToken cancellationToken = default
+    ) =>
+        await SyncMappings
+            .Where(m =>
+                m.EntityType == SyncEntityType.TodoList && !TodoList.Any(l => l.Id == m.LocalId)
+            )
+            .Select(m => new OrphanedListMapping(m.Id, m.ExternalId))
+            .ToListAsync(cancellationToken);
+
+    public async Task ApplyExternalDeleteListAsync(
+        ApplyExternalDeleteListPlan plan,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var localItems = await TodoListItem
+            .Where(i => i.TodoListId == plan.LocalListId)
+            .ToListAsync(cancellationToken);
+        var localItemIds = localItems.Select(i => i.Id).ToList();
+
+        var itemMappings = await SyncMappings
+            .Where(m =>
+                m.EntityType == SyncEntityType.TodoListItem && localItemIds.Contains(m.LocalId)
+            )
+            .ToListAsync(cancellationToken);
+
+        SyncMappings.RemoveRange(itemMappings);
+        TodoListItem.RemoveRange(localItems);
+
+        var listMapping = await SyncMappings.FindAsync(
+            new object?[] { plan.MappingId },
+            cancellationToken
+        );
+        if (listMapping is not null)
+        {
+            SyncMappings.Remove(listMapping);
+        }
+
+        var local = await TodoList.FindAsync(new object?[] { plan.LocalListId }, cancellationToken);
+        if (local is not null)
+        {
+            TodoList.Remove(local);
+        }
+
+        await SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApplyExternalDeleteItemAsync(
+        ApplyExternalDeleteItemPlan plan,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var mapping = await SyncMappings.FindAsync(
+            new object?[] { plan.MappingId },
+            cancellationToken
+        );
+        if (mapping is not null)
+        {
+            SyncMappings.Remove(mapping);
+        }
+
+        var item = await TodoListItem.FindAsync(
+            new object?[] { plan.LocalItemId },
+            cancellationToken
+        );
+        if (item is not null)
+        {
+            TodoListItem.Remove(item);
+        }
+
+        await SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder

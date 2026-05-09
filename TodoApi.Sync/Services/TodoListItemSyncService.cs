@@ -179,9 +179,12 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
-        var mappedItemsByExternalId = (
-            await _db.GetMappedTodoListItemsAsync(cancellationToken)
-        ).ToDictionary(m => m.ExternalItemId, m => m, StringComparer.Ordinal);
+        var mappedItems = await _db.GetMappedTodoListItemsAsync(cancellationToken);
+        var mappedItemsByExternalId = mappedItems.ToDictionary(
+            m => m.ExternalItemId,
+            m => m,
+            StringComparer.Ordinal
+        );
 
         // Flatten the mapped externals into per-item tuples so the reconcile loop never has to
         // re-derive the parent ids: the caller (TodoListSyncService) already knows which local
@@ -242,6 +245,71 @@ public class TodoListItemSyncService : ITodoListItemSyncService
             }
         }
 
+        // 2nd pass: mapped items whose external counterpart has disappeared from a still-alive
+        // parent list. Filter by ParentExternalId IN seenExternalListIds — items whose parent
+        // is gone are already cleaned up by ApplyExternalDeleteListAsync (cascade) in the list
+        // pull. Mirror policy: log Warning if local had unsynced edits, then delete.
+        var seenExternalListIds = new HashSet<string>(
+            mappedExternals.Select(m => m.ParentExternalId),
+            StringComparer.Ordinal
+        );
+        var seenExternalItemIds = new HashSet<string>(
+            flattened.Select(f => f.Item.Id),
+            StringComparer.Ordinal
+        );
+
+        var deleted = 0;
+        var deleteCandidates = mappedItems
+            .Where(m =>
+                seenExternalListIds.Contains(m.ParentExternalId)
+                && !seenExternalItemIds.Contains(m.ExternalItemId)
+            )
+            .ToList();
+
+        foreach (var mapped in deleteCandidates)
+        {
+            try
+            {
+                if (
+                    mapped.LocalUpdatedAtAtSync.HasValue
+                    && mapped.CurrentLocalUpdatedAt > mapped.LocalUpdatedAtAtSync.Value
+                )
+                {
+                    _logger.LogWarning(
+                        "Discarding unsynced local edits on TodoListItem {LocalId} (External {ExternalItemId}) before mirror delete; LocalUpdatedAt={LocalUpdatedAt} > LocalUpdatedAtAtSync={LocalUpdatedAtAtSync}",
+                        mapped.LocalId,
+                        mapped.ExternalItemId,
+                        mapped.CurrentLocalUpdatedAt,
+                        mapped.LocalUpdatedAtAtSync
+                    );
+                }
+                await _db.ApplyExternalDeleteItemAsync(
+                    new ApplyExternalDeleteItemPlan(mapped.LocalId, mapped.MappingId),
+                    cancellationToken
+                );
+                _logger.LogInformation(
+                    "Pull deleted local TodoListItem {LocalId} (external {ExternalItemId} disappeared from parent {ParentExternalId})",
+                    mapped.LocalId,
+                    mapped.ExternalItemId,
+                    mapped.ParentExternalId
+                );
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Pull failed to delete local TodoListItem {LocalId} (external {ExternalItemId} disappeared)",
+                    mapped.LocalId,
+                    mapped.ExternalItemId
+                );
+                failed++;
+            }
+        }
+
+        var total = flattened.Count + deleteCandidates.Count;
+        processed += deleted;
+
         run.FinishedAt = DateTime.UtcNow;
         run.ItemsProcessed = processed;
         run.ItemsFailed = failed;
@@ -251,7 +319,7 @@ public class TodoListItemSyncService : ITodoListItemSyncService
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return new SyncRunResult(flattened.Count, processed, failed, run.Status);
+        return new SyncRunResult(total, processed, failed, run.Status);
     }
 
     private async Task ReconcileMappedItemAsync(

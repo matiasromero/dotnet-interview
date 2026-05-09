@@ -36,6 +36,7 @@ public class TodoListSyncService : ITodoListSyncService
         await _db.SaveChangesAsync(cancellationToken);
 
         var candidates = await _db.GetUnmappedTodoListsAsync(cancellationToken);
+        var orphans = await _db.GetOrphanedListMappingsAsync(cancellationToken);
 
         int pushed = 0;
         int failed = 0;
@@ -136,6 +137,46 @@ public class TodoListSyncService : ITodoListSyncService
             }
         }
 
+        // 2nd pass: mappings whose local TodoList has been hard-deleted. DELETE externally
+        // (which cascades child items per the API contract) and clean up the mapping row.
+        // Child item mappings of this list remain — they'll be cleaned by PushTodoListItemsAsync
+        // via the existing 404-grace path (since their external counterparts are already gone).
+        foreach (var orphan in orphans)
+        {
+            try
+            {
+                await _client.DeleteTodoListAsync(orphan.ExternalId, cancellationToken);
+                await RemoveMappingAsync(orphan.MappingId, cancellationToken);
+                _logger.LogInformation(
+                    "Deleted external TodoList {ExternalId} and cleaned orphan mapping {MappingId}",
+                    orphan.ExternalId,
+                    orphan.MappingId
+                );
+                pushed++;
+            }
+            catch (ExternalApiException ex) when (ex.StatusCode == 404)
+            {
+                _logger.LogInformation(
+                    "External TodoList {ExternalId} already deleted; cleaning up mapping {MappingId}",
+                    orphan.ExternalId,
+                    orphan.MappingId
+                );
+                await RemoveMappingAsync(orphan.MappingId, cancellationToken);
+                pushed++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to delete external TodoList {ExternalId} (mapping {MappingId})",
+                    orphan.ExternalId,
+                    orphan.MappingId
+                );
+                failed++;
+            }
+        }
+
+        var total = candidates.Count + orphans.Count;
         run.FinishedAt = DateTime.UtcNow;
         run.ItemsProcessed = pushed;
         run.ItemsFailed = failed;
@@ -145,7 +186,7 @@ public class TodoListSyncService : ITodoListSyncService
                 : (pushed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return new SyncRunResult(candidates.Count, pushed, failed, run.Status);
+        return new SyncRunResult(total, pushed, failed, run.Status);
     }
 
     public async Task<(
@@ -181,9 +222,12 @@ public class TodoListSyncService : ITodoListSyncService
             return (new SyncRunResult(0, 0, 0, SyncRunStatus.Failed), mappedExternals);
         }
 
-        var mappedByExternalId = (
-            await _db.GetMappedTodoListsAsync(cancellationToken)
-        ).ToDictionary(m => m.ExternalId, m => m, StringComparer.Ordinal);
+        var mappedLists = await _db.GetMappedTodoListsAsync(cancellationToken);
+        var mappedByExternalId = mappedLists.ToDictionary(
+            m => m.ExternalId,
+            m => m,
+            StringComparer.Ordinal
+        );
 
         int processed = 0;
         int failed = 0;
@@ -229,6 +273,64 @@ public class TodoListSyncService : ITodoListSyncService
             }
         }
 
+        // 2nd pass: detect mapped local lists whose external counterpart has disappeared from
+        // the GET response. Cascade local delete (list + child items + child item mappings)
+        // per Mirror policy. If the local row had unsynced edits since the last snapshot, log
+        // a Warning to surface that data was discarded.
+        var seenExternalIds = new HashSet<string>(
+            externals.Select(e => e.Id),
+            StringComparer.Ordinal
+        );
+        var deleted = 0;
+        foreach (var mapped in mappedLists)
+        {
+            if (seenExternalIds.Contains(mapped.ExternalId))
+            {
+                continue;
+            }
+            try
+            {
+                if (
+                    mapped.LocalUpdatedAtAtSync.HasValue
+                    && mapped.CurrentLocalUpdatedAt > mapped.LocalUpdatedAtAtSync.Value
+                )
+                {
+                    _logger.LogWarning(
+                        "Discarding unsynced local edits on TodoList {LocalId} (External {ExternalId}) before mirror delete; LocalUpdatedAt={LocalUpdatedAt} > LocalUpdatedAtAtSync={LocalUpdatedAtAtSync}",
+                        mapped.LocalId,
+                        mapped.ExternalId,
+                        mapped.CurrentLocalUpdatedAt,
+                        mapped.LocalUpdatedAtAtSync
+                    );
+                }
+                await _db.ApplyExternalDeleteListAsync(
+                    new ApplyExternalDeleteListPlan(mapped.LocalId, mapped.MappingId),
+                    cancellationToken
+                );
+                _logger.LogInformation(
+                    "Pull deleted local TodoList {LocalId} (external {ExternalId} disappeared)",
+                    mapped.LocalId,
+                    mapped.ExternalId
+                );
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Pull failed to delete local TodoList {LocalId} (external {ExternalId} disappeared)",
+                    mapped.LocalId,
+                    mapped.ExternalId
+                );
+                failed++;
+            }
+        }
+
+        var deleteCandidates = mappedLists.Count(m => !seenExternalIds.Contains(m.ExternalId));
+        var total = externals.Count + deleteCandidates;
+
+        processed += deleted;
+
         run.FinishedAt = DateTime.UtcNow;
         run.ItemsProcessed = processed;
         run.ItemsFailed = failed;
@@ -238,7 +340,7 @@ public class TodoListSyncService : ITodoListSyncService
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return (new SyncRunResult(externals.Count, processed, failed, run.Status), mappedExternals);
+        return (new SyncRunResult(total, processed, failed, run.Status), mappedExternals);
     }
 
     private async Task ReconcileMappedAsync(
@@ -397,5 +499,16 @@ public class TodoListSyncService : ITodoListSyncService
             external.Name,
             embeddedItems.Count
         );
+    }
+
+    private async Task RemoveMappingAsync(long mappingId, CancellationToken ct)
+    {
+        var trackedMapping = await _db.SyncMappings.FindAsync(new object?[] { mappingId }, ct);
+        if (trackedMapping is null)
+        {
+            return;
+        }
+        _db.SyncMappings.Remove(trackedMapping);
+        await _db.SaveChangesAsync(ct);
     }
 }

@@ -30,4 +30,6 @@ public interface IExternalTodoListClient
         string externalItemId,
         CancellationToken cancellationToken
     );
+
+    Task DeleteTodoListAsync(string externalId, CancellationToken cancellationToken);
 }

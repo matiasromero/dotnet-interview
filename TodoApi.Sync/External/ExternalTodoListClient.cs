@@ -192,4 +192,22 @@ public class ExternalTodoListClient : IExternalTodoListClient
             );
         }
     }
+
+    public async Task DeleteTodoListAsync(string externalId, CancellationToken cancellationToken)
+    {
+        var path = $"{TodoListsPath}/{externalId}";
+        using var response = await _http.DeleteAsync(path, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ExternalApiException(
+                $"DELETE {path} failed with {(int)response.StatusCode}",
+                (int)response.StatusCode,
+                "DELETE",
+                path,
+                body
+            );
+        }
+    }
 }

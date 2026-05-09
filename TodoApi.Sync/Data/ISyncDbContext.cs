@@ -119,4 +119,33 @@ public interface ISyncDbContext
         PersistEmbeddedItemMappingsPlan plan,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Returns SyncMappings of TodoLists whose local row has been deleted (anti-join against
+    /// the TodoList table). Used by the push pipeline to issue DELETEs against the external
+    /// API and clean up the orphaned mapping rows.
+    /// </summary>
+    Task<List<OrphanedListMapping>> GetOrphanedListMappingsAsync(
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Cascade-deletes a local TodoList after detecting its external counterpart has
+    /// disappeared: removes child TodoListItem rows, child item SyncMappings, the list
+    /// SyncMapping, and the TodoList itself in a single SaveChanges (atomic on SqlServer;
+    /// InMemory has no transactions but call sites accept the documented caveat).
+    /// </summary>
+    Task ApplyExternalDeleteListAsync(
+        ApplyExternalDeleteListPlan plan,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Deletes a local TodoListItem and its SyncMapping after detecting that its external
+    /// counterpart has disappeared (parent list still alive). Single SaveChanges.
+    /// </summary>
+    Task ApplyExternalDeleteItemAsync(
+        ApplyExternalDeleteItemPlan plan,
+        CancellationToken cancellationToken = default
+    );
 }

@@ -1394,4 +1394,961 @@ public class TodoListSyncServiceTests
         Assert.Empty(ctx.SyncMappings);
         Assert.Single(ctx.SyncRuns);
     }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OrphanListMapping_DeletesExternalAndRemovesMapping()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        // Mapping huérfano: LocalId apunta a una TodoList que no existe.
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 999,
+                ExternalId = "ext-orphan",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-orphan", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        Assert.Empty(ctx.SyncMappings);
+
+        client.Verify(
+            c => c.DeleteTodoListAsync("ext-orphan", It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OrphanListMappingExternal404_TreatsAsResolved()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 999,
+                ExternalId = "ext-already-gone",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-already-gone", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(
+                new ExternalApiException(
+                    "missing",
+                    404,
+                    "DELETE",
+                    "todolists/ext-already-gone",
+                    null
+                )
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        Assert.Empty(ctx.SyncMappings);
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OrphanListMappingExternal500_FailsAndKeepsMapping()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 999,
+                ExternalId = "ext-flaky",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-flaky", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(
+                new ExternalApiException("boom", 500, "DELETE", "todolists/ext-flaky", null)
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(0, result.Pushed);
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(SyncRunStatus.Failed, result.Status);
+
+        // Mapping persiste para reintentarse en el próximo tick.
+        var mapping = Assert.Single(ctx.SyncMappings);
+        Assert.Equal("ext-flaky", mapping.ExternalId);
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OrphanListMappingWithChildItemMappings_DeletesListMappingChildMappingsRemain()
+    {
+        // El push-list NO toca los mappings de items hijos huérfanos. Eso lo limpia el push-item
+        // siguiente (con 404 grace porque el list-DELETE ya hizo cascade externamente).
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.SyncMappings.AddRange(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 100,
+                ExternalId = "ext-list-100",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 1000,
+                ExternalId = "ext-item-1000",
+                ParentExternalId = "ext-list-100",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 1001,
+                ExternalId = "ext-item-1001",
+                ParentExternalId = "ext-list-100",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-list-100", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        // Sólo el mapping de TodoList se eliminó.
+        Assert.Empty(ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList).ToList());
+        Assert.Equal(2, ctx.SyncMappings.Count(m => m.EntityType == SyncEntityType.TodoListItem));
+
+        // El service no llama a DeleteTodoItemAsync — eso es responsabilidad del push-item.
+        client.Verify(
+            c =>
+                c.DeleteTodoItemAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Never
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_NoOrphans_DoesNotCallDelete()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        // Una lista con su mapping completo (no-orphan).
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "Synced" });
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        // Strict mock: si el service llama DeleteTodoListAsync, este test falla.
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Total);
+        Assert.Equal(0, result.Pushed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        client.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_MixedCreateAndOrphan_BothProcessed()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        // Una lista nueva (será POST) + un mapping huérfano (será DELETE).
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 5, Name = "New" });
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 999,
+                ExternalId = "ext-orphan",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                (CreateExternalTodoListRequest req, Guid _, CancellationToken __) =>
+                    new ExternalTodoList(
+                        Id: $"ext-{req.SourceId}",
+                        SourceId: req.SourceId,
+                        Name: req.Name,
+                        CreatedAt: DateTime.UtcNow,
+                        UpdatedAt: DateTime.UtcNow,
+                        Items: Array.Empty<ExternalTodoItem>()
+                    )
+            );
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-orphan", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(2, result.Total);
+        Assert.Equal(2, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        // Mapping del orphan eliminado, mapping de la nueva lista persistido.
+        var mapping = Assert.Single(ctx.SyncMappings);
+        Assert.Equal(5L, mapping.LocalId);
+        Assert.Equal("ext-5", mapping.ExternalId);
+
+        client.Verify(
+            c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
+        client.Verify(
+            c => c.DeleteTodoListAsync("ext-orphan", It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MappedExternalDisappeared_DeletesLocalListAndAllMappings()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "Will be deleted",
+                UpdatedAt = snapshot,
+                Items = new List<TodoApi.Models.TodoListItem>
+                {
+                    new()
+                    {
+                        Id = 100,
+                        Description = "Child 1",
+                        IsCompleted = false,
+                        TodoListId = 1,
+                        UpdatedAt = snapshot,
+                    },
+                    new()
+                    {
+                        Id = 101,
+                        Description = "Child 2",
+                        IsCompleted = true,
+                        TodoListId = 1,
+                        UpdatedAt = snapshot,
+                    },
+                },
+            }
+        );
+        ctx.SyncMappings.AddRange(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 100,
+                ExternalId = "ext-item-100",
+                ParentExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 101,
+                ExternalId = "ext-item-101",
+                ParentExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExternalTodoList>());
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, mappedExternals) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        Assert.Empty(ctx.TodoList);
+        Assert.Empty(ctx.TodoListItem);
+        Assert.Empty(ctx.SyncMappings);
+
+        // El 2nd pass NO devuelve esta lista al item pull (la lista ya no existe).
+        Assert.Empty(mappedExternals);
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MappedExternalDisappearedWithUnsyncedLocalEdits_LogsWarningAndDeletes()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+        var localEditedAt = snapshot.AddMinutes(5);
+
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "Local edit lost",
+                UpdatedAt = localEditedAt,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExternalTodoList>());
+
+        var loggerMock = new Mock<ILogger<TodoListSyncService>>();
+
+        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Empty(ctx.TodoList);
+        Assert.Empty(ctx.SyncMappings);
+
+        loggerMock.Verify(
+            l =>
+                l.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+            Times.AtLeastOnce
+        );
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MappedExternalDisappearedWithLocalUpdatedAtAtSyncNull_DoesNotLogWarning()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var localUpdatedAt = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "No snapshot",
+                UpdatedAt = localUpdatedAt,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = DateTime.UtcNow.AddHours(-1),
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = null,
+                ExternalUpdatedAtAtSync = null,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExternalTodoList>());
+
+        var loggerMock = new Mock<ILogger<TodoListSyncService>>();
+
+        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Empty(ctx.TodoList);
+        Assert.Empty(ctx.SyncMappings);
+
+        // CurrentLocalUpdatedAt > MinValue es estrictamente true cuando local.UpdatedAt > MinValue
+        // pero LocalUpdatedAtAtSync == null se trata como MinValue. Para detectar "edits desde
+        // last sync" exigimos que local.UpdatedAt > LocalUpdatedAtAtSync ?? MinValue, lo cual es
+        // true aquí — pero la decisión es: con null tratado como MinValue, evitar el ruido del
+        // Warning para mappings legacy que nunca recibieron snapshot. Por lo tanto, NO Warning.
+        loggerMock.Verify(
+            l =>
+                l.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+            Times.Never
+        );
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MappedExternalDisappearedNoLocalChanges_DeletesSilently()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "Stable",
+                UpdatedAt = snapshot,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExternalTodoList>());
+
+        var loggerMock = new Mock<ILogger<TodoListSyncService>>();
+
+        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Empty(ctx.TodoList);
+        Assert.Empty(ctx.SyncMappings);
+
+        loggerMock.Verify(
+            l =>
+                l.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+            Times.Never
+        );
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_NoMissingExternals_DoesNotInvokeDeletePass()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "Still there",
+                UpdatedAt = snapshot,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { ExternalListAt("ext-1", "1", "Still there", snapshot) });
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, mappedExternals) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+
+        Assert.Single(ctx.TodoList);
+        Assert.Single(ctx.SyncMappings);
+        Assert.Single(mappedExternals);
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MultipleMissingExternals_AllDeleted()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.TodoList.AddRange(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "First",
+                UpdatedAt = snapshot,
+            },
+            new TodoApi.Models.TodoList
+            {
+                Id = 2,
+                Name = "Second",
+                UpdatedAt = snapshot,
+            },
+            new TodoApi.Models.TodoList
+            {
+                Id = 3,
+                Name = "Survivor",
+                UpdatedAt = snapshot,
+            }
+        );
+        ctx.SyncMappings.AddRange(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 2,
+                ExternalId = "ext-2",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 3,
+                ExternalId = "ext-3",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        // Solo ext-3 sigue en el GET; ext-1 y ext-2 desaparecieron.
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { ExternalListAt("ext-3", "3", "Survivor", snapshot) });
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Equal(3, result.Total); // 1 reconcile + 2 deletes
+        Assert.Equal(3, result.Pushed);
+        Assert.Equal(0, result.Failed);
+
+        var survivor = Assert.Single(ctx.TodoList);
+        Assert.Equal(3L, survivor.Id);
+        var survivorMapping = Assert.Single(ctx.SyncMappings);
+        Assert.Equal("ext-3", survivorMapping.ExternalId);
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MissingExternalAndCreateExternal_BothProcessed()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        // Mapped local list whose external counterpart will be missing.
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "Will be deleted",
+                UpdatedAt = snapshot,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-disappeared",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        // GET devuelve solo una lista nueva (no la mapeada).
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { ExternalListAt("ext-new", null, "Brand new", snapshot) });
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Equal(2, result.Total); // 1 fetched + 1 deleted
+        Assert.Equal(2, result.Pushed);
+
+        // Local antiguo borrado, local nuevo creado.
+        var local = Assert.Single(ctx.TodoList);
+        Assert.Equal("Brand new", local.Name);
+
+        var mapping = Assert.Single(ctx.SyncMappings);
+        Assert.Equal("ext-new", mapping.ExternalId);
+    }
+
+    [Fact]
+    public async Task PullTodoListsAsync_MissingExternalApplyDeleteThrows_StatusPartial()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.TodoList.AddRange(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "First",
+                UpdatedAt = snapshot,
+            },
+            new TodoApi.Models.TodoList
+            {
+                Id = 2,
+                Name = "Second",
+                UpdatedAt = snapshot,
+            }
+        );
+        ctx.SyncMappings.AddRange(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 2,
+                ExternalId = "ext-2",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        // Mock the db wrapper so ApplyExternalDeleteListAsync throws for one specific list
+        // but the other delete proceeds normally. Use a wrapper that intercepts the call.
+        var dbMock = new Mock<TodoApi.Sync.Data.ISyncDbContext>();
+        dbMock.SetupGet(d => d.SyncMappings).Returns(ctx.SyncMappings);
+        dbMock.SetupGet(d => d.SyncRuns).Returns(ctx.SyncRuns);
+        dbMock
+            .Setup(d => d.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken ct) => ctx.SaveChangesAsync(ct));
+        dbMock
+            .Setup(d => d.GetMappedTodoListsAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken ct) => ctx.GetMappedTodoListsAsync(ct));
+        dbMock
+            .Setup(d =>
+                d.FindUnmappedLocalByIdAsync(It.IsAny<long>(), It.IsAny<CancellationToken>())
+            )
+            .Returns(
+                (long id, CancellationToken ct) =>
+                    ((TodoApi.Sync.Data.ISyncDbContext)ctx).FindUnmappedLocalByIdAsync(id, ct)
+            );
+        dbMock
+            .Setup(d =>
+                d.ApplyExternalDeleteListAsync(
+                    It.Is<ApplyExternalDeleteListPlan>(p => p.LocalListId == 2),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ThrowsAsync(new InvalidOperationException("DB write failed"));
+        dbMock
+            .Setup(d =>
+                d.ApplyExternalDeleteListAsync(
+                    It.Is<ApplyExternalDeleteListPlan>(p => p.LocalListId == 1),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .Returns(
+                (ApplyExternalDeleteListPlan plan, CancellationToken ct) =>
+                    ((TodoApi.Sync.Data.ISyncDbContext)ctx).ApplyExternalDeleteListAsync(plan, ct)
+            );
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<ExternalTodoList>());
+
+        var sut = new TodoListSyncService(
+            dbMock.Object,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(2, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(SyncRunStatus.Partial, result.Status);
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_MultipleOrphansOneFails_StatusPartial()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+
+        ctx.SyncMappings.AddRange(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 901,
+                ExternalId = "ext-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 902,
+                ExternalId = "ext-2",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+            },
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 903,
+                ExternalId = "ext-3",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-1", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-2", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ExternalApiException("boom", 503, "DELETE", "todolists/ext-2", null));
+        client
+            .Setup(c => c.DeleteTodoListAsync("ext-3", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(3, result.Total);
+        Assert.Equal(2, result.Pushed);
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(SyncRunStatus.Partial, result.Status);
+
+        // ext-2 queda; ext-1 y ext-3 se eliminaron.
+        var remaining = Assert.Single(ctx.SyncMappings);
+        Assert.Equal("ext-2", remaining.ExternalId);
+    }
 }

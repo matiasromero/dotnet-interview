@@ -366,4 +366,39 @@ public class ExternalTodoListClientTests
         Assert.Equal("DELETE", ex.Method);
         Assert.EndsWith("todolists/lst-1/todoitems/itm-9", ex.Path);
     }
+
+    [Fact]
+    public async Task DeleteTodoListAsync_HappyPath_SendsDeleteToCorrectPath()
+    {
+        var handler = new StubHttpMessageHandler(HttpStatusCode.NoContent, null);
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        await client.DeleteTodoListAsync("ext-1", CancellationToken.None);
+
+        var sent = Assert.Single(handler.Requests);
+        Assert.Equal(HttpMethod.Delete, sent.Method);
+        Assert.EndsWith("/todolists/ext-1", sent.RequestUri!.AbsolutePath);
+        Assert.Empty(handler.RequestBodies);
+    }
+
+    [Fact]
+    public async Task DeleteTodoListAsync_NonSuccess_ThrowsExternalApiException()
+    {
+        var handler = new StubHttpMessageHandler(
+            HttpStatusCode.NotFound,
+            "{\"error\":\"missing\"}"
+        );
+        var http = new HttpClient(handler) { BaseAddress = new Uri("http://localhost:8080") };
+        var client = new ExternalTodoListClient(http);
+
+        var ex = await Assert.ThrowsAsync<ExternalApiException>(
+            () => client.DeleteTodoListAsync("ext-missing", CancellationToken.None)
+        );
+
+        Assert.Equal(404, ex.StatusCode);
+        Assert.Equal("DELETE", ex.Method);
+        Assert.Equal("todolists/ext-missing", ex.Path);
+        Assert.Contains("missing", ex.Body);
+    }
 }
