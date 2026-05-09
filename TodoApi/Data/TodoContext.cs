@@ -122,12 +122,18 @@ public class TodoContext : DbContext, ISyncDbContext
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder
+            .Entity<TodoListItem>()
+            .Property(i => i.UpdatedAt)
+            .HasDefaultValueSql("GETUTCDATE()");
+
         modelBuilder.Entity<SyncMapping>(b =>
         {
             b.HasIndex(m => new { m.EntityType, m.LocalId }).IsUnique();
             b.HasIndex(m => new { m.EntityType, m.ExternalId }).IsUnique();
             b.HasIndex(m => m.IdempotencyKey).IsUnique();
             b.Property(m => m.ExternalId).HasMaxLength(64).IsRequired();
+            b.Property(m => m.ParentExternalId).HasMaxLength(64);
         });
 
         modelBuilder.Entity<SyncRun>(b =>
