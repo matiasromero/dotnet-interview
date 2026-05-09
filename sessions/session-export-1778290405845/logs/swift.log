@@ -1,0 +1,169 @@
+[Hotkey] 2026-04-16 12:29:25 [info] No accessibility permissions, using basic hotkey detection
+[Fonts] 2026-04-16 12:29:25 [info] Loaded 4/4 fonts from /var/folders/p9/13c123_502xd55lxg9qbj3kc0000gn/T/AppTranslocation/F04C5293-202D-47CB-997C-7C5312A426BF/d/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-16 12:35:29 [info] No accessibility permissions, using basic hotkey detection
+[Fonts] 2026-04-16 12:35:29 [info] Loaded 4/4 fonts from /var/folders/p9/13c123_502xd55lxg9qbj3kc0000gn/T/AppTranslocation/F04C5293-202D-47CB-997C-7C5312A426BF/d/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-16 14:24:49 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-16 14:24:49 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-16 14:25:15 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-16 14:25:15 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-17 15:51:53 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-17 15:51:53 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-17 15:53:10 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-17 15:53:10 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-18 13:48:04 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-18 13:48:04 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-19 20:48:43 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-19 20:48:43 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-19 23:22:25 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-19 23:22:25 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-20 15:18:46 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-20 15:18:46 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-20 23:07:19 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-20 23:07:20 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-20 23:21:16 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-20 23:21:17 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-21 09:45:42 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-21 09:45:42 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-21 10:47:58 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-21 10:47:58 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-21 12:49:48 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-21 12:49:48 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-21 14:29:09 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-21 14:29:09 [info] Authorization granted: false
+[Hotkey] 2026-04-21 19:48:22 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-21 19:48:22 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-21 21:34:07 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-21 21:34:07 [info] Authorization granted: false
+[Hotkey] 2026-04-22 07:18:41 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-22 07:18:41 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-22 07:33:49 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-22 07:33:49 [info] Authorization granted: false
+[Hotkey] 2026-04-23 08:03:35 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-23 08:03:36 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-23 08:08:45 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-23 08:08:45 [info] Authorization granted: false
+[Hotkey] 2026-04-23 23:00:47 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-23 23:00:47 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-24 07:57:58 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-24 07:57:58 [info] Authorization granted: false
+[Hotkey] 2026-04-24 22:35:21 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-24 22:35:21 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-24 22:53:11 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-24 22:53:11 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-25 00:53:36 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-25 00:53:36 [info] Authorization granted: false
+[Hotkey] 2026-04-25 15:15:06 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-25 15:15:06 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-25 15:20:48 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-25 15:20:48 [info] Authorization granted: false
+[Hotkey] 2026-04-25 18:37:10 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-25 18:37:11 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-25 18:44:52 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-25 18:44:52 [info] Authorization granted: false
+[Hotkey] 2026-04-25 21:02:57 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-25 21:02:57 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-26 11:34:20 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-26 11:34:20 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-26 11:42:51 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-26 11:42:51 [info] Authorization granted: false
+[Hotkey] 2026-04-26 15:43:05 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-26 15:43:05 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-26 17:44:51 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-26 17:44:51 [info] Authorization granted: false
+[Hotkey] 2026-04-27 08:52:56 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-27 08:52:56 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-27 20:12:45 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-27 20:12:45 [info] Authorization granted: false
+[Hotkey] 2026-04-28 09:46:16 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-28 09:46:17 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-28 10:33:18 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-28 10:33:18 [info] Authorization granted: false
+[Hotkey] 2026-04-28 20:15:17 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-28 20:15:17 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-04-28 21:53:11 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-28 21:53:12 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-28 22:16:18 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-28 22:16:18 [info] Authorization granted: false
+[Hotkey] 2026-04-29 09:11:13 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-29 09:11:13 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-29 09:15:50 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-29 09:15:50 [info] Authorization granted: false
+[Hotkey] 2026-04-29 10:38:36 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-29 10:38:36 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-29 10:58:28 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-29 10:58:28 [info] Authorization granted: false
+[Hotkey] 2026-04-29 11:51:11 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-29 11:51:11 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-29 21:34:02 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-29 21:34:02 [info] Authorization granted: false
+[Hotkey] 2026-04-29 22:24:46 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-04-29 22:24:46 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-04-29 23:06:08 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-04-29 23:06:08 [info] Authorization granted: false
+[Hotkey] 2026-05-01 00:57:55 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-01 00:57:56 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-01 01:00:44 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-01 01:00:44 [info] Authorization granted: false
+[Dictation] 2026-05-01 09:52:58 [info] Stopping speech-to-text session
+[Dictation] 2026-05-01 09:52:58 [info] Stopping speech-to-text session
+[Dictation] 2026-05-01 09:52:58 [info] Stopping speech-to-text session
+[Dictation] 2026-05-01 09:53:00 [info] Stopping speech-to-text session
+[Hotkey] 2026-05-01 14:34:27 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-01 14:34:27 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-01 14:48:00 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-01 14:48:00 [info] Authorization granted: false
+[Hotkey] 2026-05-02 07:23:59 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-02 07:23:59 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Dictation] 2026-05-02 07:31:38 [info] Stopping speech-to-text session
+[Dictation] 2026-05-02 07:31:39 [info] Stopping speech-to-text session
+[Dictation] 2026-05-02 07:31:39 [info] Stopping speech-to-text session
+[Hotkey] 2026-05-02 11:28:31 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-02 11:28:31 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-02 11:36:51 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-02 11:36:51 [info] Authorization granted: false
+[Dictation] 2026-05-02 13:55:18 [info] Stopping speech-to-text session
+[Dictation] 2026-05-02 13:55:18 [info] Stopping speech-to-text session
+[Dictation] 2026-05-02 13:55:18 [info] Stopping speech-to-text session
+[Hotkey] 2026-05-02 18:06:05 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-02 18:06:05 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-02 19:20:43 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-02 19:20:43 [info] Authorization granted: false
+[Hotkey] 2026-05-03 11:54:39 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-03 11:54:39 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-03 12:01:46 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-03 12:01:46 [info] Authorization granted: false
+[Hotkey] 2026-05-04 09:48:17 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-04 09:48:17 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-04 10:20:41 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-04 10:20:41 [info] Authorization granted: false
+[Dictation] 2026-05-04 15:14:30 [info] Stopping speech-to-text session
+[Dictation] 2026-05-04 15:14:31 [info] Stopping speech-to-text session
+[Dictation] 2026-05-04 15:14:31 [info] Stopping speech-to-text session
+[Hotkey] 2026-05-05 08:44:36 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-05 08:44:37 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-05 19:14:03 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-05 19:14:04 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-05 19:22:34 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-05 19:22:34 [info] Authorization granted: false
+[Hotkey] 2026-05-06 11:08:47 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-06 11:08:48 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-06 14:50:54 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-06 14:50:54 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-06 15:36:41 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-06 15:36:41 [info] Authorization granted: false
+[Hotkey] 2026-05-06 18:42:10 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-06 18:42:10 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-07 14:31:04 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-07 14:31:04 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-08 10:36:25 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-08 10:36:25 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-08 13:12:43 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-08 13:12:43 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-08 21:53:45 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-08 21:53:45 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-08 21:53:55 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-08 21:53:55 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Hotkey] 2026-05-08 21:54:15 [info] Accessibility permissions detected, enhancing hotkey detection to filter common shortcuts
+[Fonts] 2026-05-08 21:54:15 [info] Loaded 4/4 fonts from /Applications/Claude.app/Contents/Resources/fonts
+[Notifications] 2026-05-08 22:11:18 [error] Authorization error: Error Domain=UNErrorDomain Code=1 "Notifications are not allowed for this application" UserInfo={NSLocalizedDescription=Notifications are not allowed for this application}
+[Notifications] 2026-05-08 22:11:18 [info] Authorization granted: false

@@ -1,0 +1,6 @@
+time="2026-04-29T22:32:46-03:00" level=info msg="usernet: starting with sockFD=50"
+time="2026-04-29T22:32:46-03:00" level=info msg="usernet: vmMAC=<ip>"
+time="2026-04-29T22:32:46-03:00" level=info msg="usernet: virtual network created successfully"
+time="2026-04-29T22:32:46-03:00" level=info msg="usernet: net.Conn created from socket, type=*net.UnixConn"
+time="2026-04-29T22:32:46-03:00" level=info msg="usernet: network stack started successfully"
+time="2026-04-29T22:32:46-03:00" level=info msg="usernet: calling AcceptBess..."

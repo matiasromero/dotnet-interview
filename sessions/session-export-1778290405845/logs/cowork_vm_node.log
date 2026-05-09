@@ -1,0 +1,885 @@
+2026-04-16 12:29:26 [info] [Bundle:status] rootfs.img missing
+2026-04-16 12:29:26 [info] [VM] Loading @ant/claude-swift module...
+2026-04-16 12:29:26 [info] [VM] Module loaded successfully
+2026-04-16 12:32:11 [info] [Bundle:status] rootfs.img missing
+2026-04-16 12:32:11 [info] [Bundle:status] rootfs.img missing
+2026-04-16 12:32:11 [info] [warm] No warm file found for rootfs.img at current version
+2026-04-16 12:32:11 [info] [cache] No cached compressed file for rootfs.img
+2026-04-16 12:32:11 [info] rootfs.img not found, downloading...
+2026-04-16 12:32:11 [info] Downloading rootfs.img...
+2026-04-16 12:32:12 [info] [KernelBugMonitor] State reset
+2026-04-16 12:32:12 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-16 12:32:12 [info] [VM:start] Bundle version: <blob>
+2026-04-16 12:32:12 [info] [VM:start] VM instance ID: df536601-4ddf-4172-b7de-772f7883514b
+2026-04-16 12:32:12 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-16 12:32:12 [info] [downloadVM] Download already in progress, waiting...
+2026-04-16 12:32:59 [info] [downloadVM] Download already in progress, waiting...
+2026-04-16 12:33:30 [info] [downloadVM] Download already in progress, waiting...
+2026-04-16 12:35:30 [info] [VM] Loading @ant/claude-swift module...
+2026-04-16 12:35:30 [info] [VM] Module loaded successfully
+2026-04-16 12:35:30 [info] [Bundle:status] rootfs.img missing
+2026-04-16 12:35:30 [info] [Bundle:status] rootfs.img missing
+2026-04-16 12:35:30 [info] [KernelBugMonitor] State reset
+2026-04-16 12:35:30 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-16 12:35:30 [info] [VM:start] Bundle version: <blob>
+2026-04-16 12:35:30 [info] [VM:start] VM instance ID: c6773393-3c22-499c-bab2-075dde167826
+2026-04-16 12:35:30 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-16 12:35:30 [info] [downloadVM] Download already in progress, waiting...
+2026-04-16 12:35:30 [info] [Bundle:status] rootfs.img missing
+2026-04-16 12:35:30 [info] [warm] No warm file found for rootfs.img at current version
+2026-04-16 12:35:30 [info] [cache] No cached compressed file for rootfs.img
+2026-04-16 12:35:30 [info] rootfs.img not found, downloading...
+2026-04-16 12:35:30 [info] Downloading rootfs.img...
+2026-04-16 12:41:53 [info] rootfs.img.zst checksum validated
+2026-04-16 12:41:53 [info] [downloadVM] Saved compressed rootfs.img to cache
+2026-04-16 12:41:53 [info] All files ready in ~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-16 12:41:53 [info] [VM:steps] download_and_sdk_prepare completed (383802ms)
+2026-04-16 12:41:53 [info] [VM:steps] load_swift_api started
+2026-04-16 12:41:53 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-16 12:41:53 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-16 12:41:53 [info] [Callbacks] VM event callbacks initialized
+2026-04-16 12:41:53 [info] [VM:steps] stop_existing_vm started
+2026-04-16 12:41:53 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-16 12:41:53 [info] [VM:steps] create_vm_config started
+2026-04-16 12:41:54 [info] [VM:steps] create_network started
+2026-04-16 12:41:54 [info] [VM:steps] create_network completed (0ms)
+2026-04-16 12:41:54 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-16 12:41:54 [info] [VM:steps] vm_boot started
+2026-04-16 12:41:54 [info] [VM:steps] vm_boot completed (96ms)
+2026-04-16 12:41:54 [info] [VM:steps] guest_vsock_connect started
+2026-04-16 12:42:01 [info] [VM:steps] guest_vsock_connect completed (7285ms)
+2026-04-16 12:42:01 [info] [VM:steps] static_ip_assignment started
+2026-04-16 12:42:01 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-16 12:42:01 [info] [VM:steps] guest_ready started
+2026-04-16 12:42:01 [info] [VM] Network status: CONNECTED
+2026-04-16 12:42:01 [info] [VM] Guest connection changed: true
+2026-04-16 12:42:01 [info] [VM:steps] guest_ready completed (1ms)
+2026-04-16 12:42:01 [info] [VM:steps] install_ca_certificates started
+2026-04-16 12:42:01 [info] [VM:steps] install_ca_certificates completed (8ms)
+2026-04-16 12:42:01 [info] [VM:steps] sdk_install started
+2026-04-16 12:42:01 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.92
+2026-04-16 12:42:01 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-16 12:42:01 [info] [VM:steps] sdk_install completed (109ms)
+2026-04-16 12:42:01 [info] [VM:start] Startup complete, total time: 391722ms
+2026-04-16 12:42:11 [info] [VM] API reachability: REACHABLE
+2026-04-16 12:52:36 [info] [VM:shutdown] App quit, stopping VM (instance: c6773393-3c22-499c-bab2-075dde167826)...
+2026-04-16 12:52:36 [info] [Keepalive] Stopping
+2026-04-16 12:52:36 [info] [VM] Guest connection changed: false
+2026-04-16 12:52:36 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-16 12:52:39 [warn] [VM] VM stopped
+2026-04-16 12:52:39 [info] [VM:shutdown] Completed in 3433ms
+2026-04-16 14:24:51 [info] [VM] Loading @ant/claude-swift module...
+2026-04-16 14:24:51 [info] [VM] Module loaded successfully
+2026-04-16 14:24:51 [info] [KernelBugMonitor] State reset
+2026-04-16 14:24:51 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-16 14:24:51 [info] [VM:start] Bundle version: <blob>
+2026-04-16 14:24:51 [info] [VM:start] VM instance ID: 758e38d7-f365-40f6-a644-700e66127201
+2026-04-16 14:24:51 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-16 14:24:51 [info] [VM:steps] download_and_sdk_prepare completed (13ms)
+2026-04-16 14:24:51 [info] [VM:steps] load_swift_api started
+2026-04-16 14:24:51 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-16 14:24:51 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-16 14:24:51 [info] [Callbacks] VM event callbacks initialized
+2026-04-16 14:24:51 [info] [VM:steps] stop_existing_vm started
+2026-04-16 14:24:51 [info] [VM:steps] stop_existing_vm completed (1ms)
+2026-04-16 14:24:51 [info] [VM:steps] create_vm_config started
+2026-04-16 14:24:51 [info] [VM:steps] create_network started
+2026-04-16 14:24:51 [info] [VM:steps] create_network completed (0ms)
+2026-04-16 14:24:51 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-16 14:24:51 [info] [VM:steps] vm_boot started
+2026-04-16 14:24:51 [info] [VM:steps] vm_boot completed (474ms)
+2026-04-16 14:24:51 [info] [VM:steps] guest_vsock_connect started
+2026-04-16 14:24:56 [info] [VM:steps] guest_vsock_connect completed (4463ms)
+2026-04-16 14:24:56 [info] [VM:steps] static_ip_assignment started
+2026-04-16 14:24:56 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-16 14:24:56 [info] [VM:steps] guest_ready started
+2026-04-16 14:24:56 [info] [VM] Network status: NOT_CONNECTED
+2026-04-16 14:24:56 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-16 14:24:56 [info] [VM] Network status: CONNECTED
+2026-04-16 14:24:56 [info] [VM] Guest connection changed: true
+2026-04-16 14:24:56 [info] [VM:steps] guest_ready completed (406ms)
+2026-04-16 14:24:56 [info] [VM:steps] install_ca_certificates started
+2026-04-16 14:24:56 [info] [VM:steps] install_ca_certificates completed (4ms)
+2026-04-16 14:24:56 [info] [VM:steps] sdk_install started
+2026-04-16 14:24:56 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.92
+2026-04-16 14:24:56 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-16 14:24:56 [info] [VM:steps] sdk_install completed (193ms)
+2026-04-16 14:24:56 [info] [VM:start] Startup complete, total time: 5712ms
+2026-04-16 14:25:06 [info] [VM] API reachability: REACHABLE
+2026-04-16 14:25:08 [info] [VM:shutdown] App quit, stopping VM (instance: 758e38d7-f365-40f6-a644-700e66127201)...
+2026-04-16 14:25:08 [info] [Keepalive] Stopping
+2026-04-16 14:25:08 [info] [VM] Guest connection changed: false
+2026-04-16 14:25:08 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-16 14:25:11 [warn] [VM] VM stopped
+2026-04-16 14:25:11 [info] [VM:shutdown] Completed in 3463ms
+2026-04-16 14:25:16 [info] [VM] Loading @ant/claude-swift module...
+2026-04-16 14:25:16 [info] [VM] Module loaded successfully
+2026-04-16 14:25:16 [info] [KernelBugMonitor] State reset
+2026-04-16 14:25:16 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-16 14:25:16 [info] [VM:start] Bundle version: <blob>
+2026-04-16 14:25:16 [info] [VM:start] VM instance ID: 8f1c25c3-c512-4895-8719-6d575c8c41dc
+2026-04-16 14:25:16 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-16 14:25:16 [info] [VM:steps] download_and_sdk_prepare completed (21ms)
+2026-04-16 14:25:16 [info] [VM:steps] load_swift_api started
+2026-04-16 14:25:16 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-16 14:25:16 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-16 14:25:16 [info] [Callbacks] VM event callbacks initialized
+2026-04-16 14:25:16 [info] [VM:steps] stop_existing_vm started
+2026-04-16 14:25:16 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-16 14:25:16 [info] [VM:steps] create_vm_config started
+2026-04-16 14:25:16 [info] [VM:steps] create_network started
+2026-04-16 14:25:16 [info] [VM:steps] create_network completed (0ms)
+2026-04-16 14:25:16 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-16 14:25:16 [info] [VM:steps] vm_boot started
+2026-04-16 14:25:16 [info] [VM:steps] vm_boot completed (75ms)
+2026-04-16 14:25:16 [info] [VM:steps] guest_vsock_connect started
+2026-04-16 14:25:20 [info] [VM:steps] guest_vsock_connect completed (4139ms)
+2026-04-16 14:25:20 [info] [VM:steps] static_ip_assignment started
+2026-04-16 14:25:20 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-16 14:25:20 [info] [VM:steps] guest_ready started
+2026-04-16 14:25:20 [info] [VM] Network status: NOT_CONNECTED
+2026-04-16 14:25:20 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-16 14:25:21 [info] [VM] Network status: CONNECTED
+2026-04-16 14:25:21 [info] [VM] Guest connection changed: true
+2026-04-16 14:25:21 [info] [VM:steps] guest_ready completed (406ms)
+2026-04-16 14:25:21 [info] [VM:steps] install_ca_certificates started
+2026-04-16 14:25:21 [info] [VM:steps] install_ca_certificates completed (1ms)
+2026-04-16 14:25:21 [info] [VM:steps] sdk_install started
+2026-04-16 14:25:21 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.92
+2026-04-16 14:25:21 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-16 14:25:21 [info] [VM:steps] sdk_install completed (120ms)
+2026-04-16 14:25:21 [info] [VM:start] Startup complete, total time: 5260ms
+2026-04-16 14:25:31 [info] [VM] API reachability: REACHABLE
+2026-04-16 14:25:53 [info] [VM:shutdown] App quit, stopping VM (instance: 8f1c25c3-c512-4895-8719-6d575c8c41dc)...
+2026-04-16 14:25:53 [info] [Keepalive] Stopping
+2026-04-16 14:25:53 [info] [VM] Guest connection changed: false
+2026-04-16 14:25:53 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-16 14:25:56 [warn] [VM] VM stopped
+2026-04-16 14:25:56 [info] [VM:shutdown] Completed in 3444ms
+2026-04-17 15:51:54 [info] [VM] Loading @ant/claude-swift module...
+2026-04-17 15:51:54 [info] [VM] Module loaded successfully
+2026-04-17 15:51:55 [info] [KernelBugMonitor] State reset
+2026-04-17 15:51:55 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-17 15:51:55 [info] [VM:start] Bundle version: <blob>
+2026-04-17 15:51:55 [info] [VM:start] VM instance ID: 3e8d1beb-dbf3-4179-a582-461566085263
+2026-04-17 15:51:55 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-17 15:51:55 [info] [VM:steps] download_and_sdk_prepare completed (7ms)
+2026-04-17 15:51:55 [info] [VM:steps] load_swift_api started
+2026-04-17 15:51:55 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-17 15:51:55 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-17 15:51:55 [info] [Callbacks] VM event callbacks initialized
+2026-04-17 15:51:55 [info] [VM:steps] stop_existing_vm started
+2026-04-17 15:51:55 [info] [VM:steps] stop_existing_vm completed (1ms)
+2026-04-17 15:51:55 [info] [VM:steps] create_vm_config started
+2026-04-17 15:51:55 [info] [VM:steps] create_network started
+2026-04-17 15:51:55 [info] [VM:steps] create_network completed (0ms)
+2026-04-17 15:51:55 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-17 15:51:55 [info] [VM:steps] vm_boot started
+2026-04-17 15:51:55 [info] [VM:steps] vm_boot completed (87ms)
+2026-04-17 15:51:55 [info] [VM:steps] guest_vsock_connect started
+2026-04-17 15:51:59 [info] [VM] Network status: NOT_CONNECTED
+2026-04-17 15:51:59 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-17 15:51:59 [info] [VM:steps] guest_vsock_connect completed (4131ms)
+2026-04-17 15:51:59 [info] [VM:steps] static_ip_assignment started
+2026-04-17 15:51:59 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-17 15:51:59 [info] [VM:steps] guest_ready started
+2026-04-17 15:51:59 [info] [VM] Network status: CONNECTED
+2026-04-17 15:51:59 [info] [VM] Guest connection changed: true
+2026-04-17 15:51:59 [info] [VM:steps] guest_ready completed (304ms)
+2026-04-17 15:51:59 [info] [VM:steps] install_ca_certificates started
+2026-04-17 15:51:59 [info] [VM:steps] install_ca_certificates completed (7ms)
+2026-04-17 15:51:59 [info] [VM:steps] sdk_install started
+2026-04-17 15:51:59 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.92
+2026-04-17 15:51:59 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-17 15:51:59 [info] [VM:steps] sdk_install completed (186ms)
+2026-04-17 15:51:59 [info] [VM:start] Startup complete, total time: 4814ms
+2026-04-17 15:52:03 [info] [warm] Fetching VM hash for version 1.3109.0
+2026-04-17 15:52:03 [info] [warm] VM hash for version 1.3109.0: <blob>
+2026-04-17 15:52:03 [info] [warm] VM SHA matches current version, skipping
+2026-04-17 15:52:09 [info] [VM] API reachability: REACHABLE
+2026-04-17 15:52:56 [info] [VM:shutdown] App quit, stopping VM (instance: 3e8d1beb-dbf3-4179-a582-461566085263)...
+2026-04-17 15:52:56 [info] [Keepalive] Stopping
+2026-04-17 15:52:56 [info] [VM] Guest connection changed: false
+2026-04-17 15:52:56 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-17 15:52:59 [warn] [VM] VM stopped
+2026-04-17 15:52:59 [info] [VM:shutdown] Completed in 3355ms
+2026-04-17 15:53:10 [info] [VM] Loading @ant/claude-swift module...
+2026-04-17 15:53:10 [info] [VM] Module loaded successfully
+2026-04-17 15:53:10 [info] [KernelBugMonitor] State reset
+2026-04-17 15:53:10 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-17 15:53:10 [info] [VM:start] Bundle version: <blob>
+2026-04-17 15:53:10 [info] [VM:start] VM instance ID: 80cb053d-a6a6-4bd5-b9a8-8c2b43e31ce3
+2026-04-17 15:53:10 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-17 15:53:13 [info] [VM:steps] download_and_sdk_prepare completed (2796ms)
+2026-04-17 15:53:13 [info] [VM:steps] load_swift_api started
+2026-04-17 15:53:13 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-17 15:53:13 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-17 15:53:13 [info] [Callbacks] VM event callbacks initialized
+2026-04-17 15:53:13 [info] [VM:steps] stop_existing_vm started
+2026-04-17 15:53:13 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-17 15:53:13 [info] [VM:steps] create_vm_config started
+2026-04-17 15:53:13 [info] [VM:steps] create_network started
+2026-04-17 15:53:13 [info] [VM:steps] create_network completed (0ms)
+2026-04-17 15:53:13 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-17 15:53:13 [info] [VM:steps] vm_boot started
+2026-04-17 15:53:13 [info] [VM:steps] vm_boot completed (73ms)
+2026-04-17 15:53:13 [info] [VM:steps] guest_vsock_connect started
+2026-04-17 15:53:20 [info] [VM:steps] guest_vsock_connect completed (7157ms)
+2026-04-17 15:53:20 [info] [VM:steps] static_ip_assignment started
+2026-04-17 15:53:20 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-17 15:53:20 [info] [VM:steps] guest_ready started
+2026-04-17 15:53:20 [info] [VM] Network status: NOT_CONNECTED
+2026-04-17 15:53:20 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-17 15:53:21 [info] [VM] Network status: CONNECTED
+2026-04-17 15:53:21 [info] [VM] Guest connection changed: true
+2026-04-17 15:53:21 [info] [VM:steps] guest_ready completed (302ms)
+2026-04-17 15:53:21 [info] [VM:steps] install_ca_certificates started
+2026-04-17 15:53:21 [info] [VM:steps] install_ca_certificates completed (3ms)
+2026-04-17 15:53:21 [info] [VM:steps] sdk_install started
+2026-04-17 15:53:21 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-17 15:53:21 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-17 15:53:21 [info] [VM:steps] sdk_install completed (300ms)
+2026-04-17 15:53:21 [info] [VM:start] Startup complete, total time: 10702ms
+2026-04-17 15:53:31 [info] [VM] API reachability: REACHABLE
+2026-04-17 22:08:31 [info] [VM:shutdown] App quit, stopping VM (instance: 80cb053d-a6a6-4bd5-b9a8-8c2b43e31ce3)...
+2026-04-17 22:08:31 [info] [Keepalive] Stopping
+2026-04-17 22:08:31 [info] [VM] Guest connection changed: false
+2026-04-17 22:08:31 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-17 22:08:34 [warn] [VM] VM stopped
+2026-04-17 22:08:34 [info] [VM:shutdown] Completed in 3694ms
+2026-04-18 13:48:05 [info] [VM] Loading @ant/claude-swift module...
+2026-04-18 13:48:05 [info] [VM] Module loaded successfully
+2026-04-18 14:41:52 [info] [KernelBugMonitor] State reset
+2026-04-18 14:41:52 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-18 14:41:52 [info] [VM:start] Bundle version: <blob>
+2026-04-18 14:41:52 [info] [VM:start] VM instance ID: 66e3d342-c452-4372-884d-45eb453a3c9d
+2026-04-18 14:41:52 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-18 14:41:52 [info] [VM:steps] download_and_sdk_prepare completed (3ms)
+2026-04-18 14:41:52 [info] [VM:steps] load_swift_api started
+2026-04-18 14:41:52 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-18 14:41:52 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-18 14:41:52 [info] [Callbacks] VM event callbacks initialized
+2026-04-18 14:41:52 [info] [VM:steps] stop_existing_vm started
+2026-04-18 14:41:52 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-18 14:41:52 [info] [VM:steps] create_vm_config started
+2026-04-18 14:41:52 [info] [VM:steps] create_network started
+2026-04-18 14:41:52 [info] [VM:steps] create_network completed (0ms)
+2026-04-18 14:41:52 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-18 14:41:52 [info] [VM:steps] vm_boot started
+2026-04-18 14:41:52 [info] [VM:steps] vm_boot completed (94ms)
+2026-04-18 14:41:52 [info] [VM:steps] guest_vsock_connect started
+2026-04-18 14:41:57 [info] [VM:steps] guest_vsock_connect completed (4135ms)
+2026-04-18 14:41:57 [info] [VM:steps] static_ip_assignment started
+2026-04-18 14:41:57 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-18 14:41:57 [info] [VM:steps] guest_ready started
+2026-04-18 14:41:57 [info] [VM] Network status: NOT_CONNECTED
+2026-04-18 14:41:57 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-18 14:41:57 [info] [VM] Network status: CONNECTED
+2026-04-18 14:41:57 [info] [VM] Guest connection changed: true
+2026-04-18 14:41:57 [info] [VM:steps] guest_ready completed (304ms)
+2026-04-18 14:41:57 [info] [VM:steps] install_ca_certificates started
+2026-04-18 14:41:57 [info] [VM:steps] sdk_install started
+2026-04-18 14:41:57 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-18 14:41:57 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-18 14:41:58 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-18 14:41:58 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-18 14:41:58 [info] [VM:start] Startup complete, total time: 5181ms
+2026-04-18 14:41:58 [info] [VM] API reachability: REACHABLE
+2026-04-18 23:12:46 [info] [VM:shutdown] App quit, stopping VM (instance: 66e3d342-c452-4372-884d-45eb453a3c9d)...
+2026-04-18 23:12:46 [info] [Keepalive] Stopping
+2026-04-18 23:12:46 [info] [VM] Guest connection changed: false
+2026-04-18 23:12:46 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-18 23:12:49 [warn] [VM] VM stopped
+2026-04-18 23:12:50 [info] [VM:shutdown] Completed in 3482ms
+2026-04-19 20:48:44 [info] [VM] Loading @ant/claude-swift module...
+2026-04-19 20:48:44 [info] [VM] Module loaded successfully
+2026-04-19 23:22:26 [info] [VM] Loading @ant/claude-swift module...
+2026-04-19 23:22:26 [info] [VM] Module loaded successfully
+2026-04-20 15:18:47 [info] [VM] Loading @ant/claude-swift module...
+2026-04-20 15:18:47 [info] [VM] Module loaded successfully
+2026-04-20 16:18:54 [info] [warm] Fetching VM hash for version 1.3561.0
+2026-04-20 16:18:54 [info] [warm] VM hash for version 1.3561.0: <blob>
+2026-04-20 16:18:54 [info] [warm] VM SHA matches current version, skipping
+2026-04-20 23:07:21 [info] [VM] Loading @ant/claude-swift module...
+2026-04-20 23:07:21 [info] [VM] Module loaded successfully
+2026-04-20 23:21:17 [info] [VM] Loading @ant/claude-swift module...
+2026-04-20 23:21:17 [info] [VM] Module loaded successfully
+2026-04-21 09:45:42 [info] [VM] Loading @ant/claude-swift module...
+2026-04-21 09:45:42 [info] [VM] Module loaded successfully
+2026-04-21 10:47:58 [info] [VM] Loading @ant/claude-swift module...
+2026-04-21 10:47:58 [info] [VM] Module loaded successfully
+2026-04-21 12:49:49 [info] [VM] Loading @ant/claude-swift module...
+2026-04-21 12:49:49 [info] [VM] Module loaded successfully
+2026-04-21 18:49:56 [info] [warm] Fetching VM hash for version 1.3883.0
+2026-04-21 18:49:56 [info] [warm] VM hash for version 1.3883.0: <blob>
+2026-04-21 18:49:56 [info] [warm] VM SHA matches current version, skipping
+2026-04-21 19:48:23 [info] [VM] Loading @ant/claude-swift module...
+2026-04-21 19:48:23 [info] [VM] Module loaded successfully
+2026-04-22 07:18:42 [info] [VM] Loading @ant/claude-swift module...
+2026-04-22 07:18:42 [info] [VM] Module loaded successfully
+2026-04-23 08:03:36 [info] [VM] Loading @ant/claude-swift module...
+2026-04-23 08:03:36 [info] [VM] Module loaded successfully
+2026-04-23 23:00:49 [info] [VM] Loading @ant/claude-swift module...
+2026-04-23 23:00:49 [info] [VM] Module loaded successfully
+2026-04-24 16:12:24 [info] [KernelBugMonitor] State reset
+2026-04-24 16:12:24 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-24 16:12:24 [info] [VM:start] Bundle version: <blob>
+2026-04-24 16:12:24 [info] [VM:start] VM instance ID: 1e9e690c-834f-4d67-930f-7fd6feb5a9cf
+2026-04-24 16:12:24 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-24 16:12:24 [info] [VM:steps] download_and_sdk_prepare completed (5ms)
+2026-04-24 16:12:24 [info] [VM:steps] load_swift_api started
+2026-04-24 16:12:24 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-24 16:12:24 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-24 16:12:24 [info] [Callbacks] VM event callbacks initialized
+2026-04-24 16:12:24 [info] [VM:steps] stop_existing_vm started
+2026-04-24 16:12:24 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-24 16:12:24 [info] [VM:steps] create_vm_config started
+2026-04-24 16:12:24 [info] [VM:steps] create_network started
+2026-04-24 16:12:24 [info] [VM:steps] create_network completed (0ms)
+2026-04-24 16:12:24 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-24 16:12:24 [info] [VM:steps] vm_boot started
+2026-04-24 16:12:24 [info] [VM:steps] vm_boot completed (90ms)
+2026-04-24 16:12:24 [info] [VM:steps] guest_vsock_connect started
+2026-04-24 16:12:31 [info] [VM:steps] guest_vsock_connect completed (7265ms)
+2026-04-24 16:12:31 [info] [VM:steps] static_ip_assignment started
+2026-04-24 16:12:31 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-24 16:12:31 [info] [VM:steps] guest_ready started
+2026-04-24 16:12:31 [info] [VM] Network status: NOT_CONNECTED
+2026-04-24 16:12:31 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-24 16:12:31 [info] [VM] Network status: CONNECTED
+2026-04-24 16:12:31 [info] [VM] Guest connection changed: true
+2026-04-24 16:12:31 [info] [VM:steps] guest_ready completed (301ms)
+2026-04-24 16:12:31 [info] [VM:steps] install_ca_certificates started
+2026-04-24 16:12:32 [info] [VM:steps] sdk_install started
+2026-04-24 16:12:32 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-24 16:12:32 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-24 16:12:32 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-24 16:12:32 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-24 16:12:32 [info] [VM:start] Startup complete, total time: 8359ms
+2026-04-24 16:12:32 [info] [VM] API reachability: REACHABLE
+2026-04-24 16:12:54 [info] [startVM] VM already connected
+2026-04-24 16:12:54 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-24 16:12:54 [warn] [Keepalive] Already running
+2026-04-24 18:24:24 [info] [startVM] VM already connected
+2026-04-24 18:24:24 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-24 18:24:24 [warn] [Keepalive] Already running
+2026-04-24 18:25:53 [info] [startVM] VM already connected
+2026-04-24 18:25:53 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-24 18:25:53 [warn] [Keepalive] Already running
+2026-04-24 18:30:31 [info] [startVM] VM already connected
+2026-04-24 18:30:31 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-24 18:30:31 [warn] [Keepalive] Already running
+2026-04-24 18:33:43 [info] [startVM] VM already connected
+2026-04-24 18:33:43 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.111
+2026-04-24 18:33:43 [warn] [Keepalive] Already running
+2026-04-24 19:46:25 [info] [warm] Fetching VM hash for version 1.4758.0
+2026-04-24 19:46:25 [info] [warm] VM hash for version 1.4758.0: <blob>
+2026-04-24 19:46:25 [info] [warm] VM SHA matches current version, skipping
+2026-04-24 22:35:08 [info] [VM:shutdown] App quit, stopping VM (instance: 1e9e690c-834f-4d67-930f-7fd6feb5a9cf)...
+2026-04-24 22:35:08 [info] [Keepalive] Stopping
+2026-04-24 22:35:08 [info] [VM] Guest connection changed: false
+2026-04-24 22:35:08 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-24 22:35:11 [warn] [VM] VM stopped
+2026-04-24 22:35:11 [info] [VM:shutdown] Completed in 3453ms
+2026-04-24 22:35:22 [info] [VM] Loading @ant/claude-swift module...
+2026-04-24 22:35:22 [info] [VM] Module loaded successfully
+2026-04-24 22:53:11 [info] [VM] Loading @ant/claude-swift module...
+2026-04-24 22:53:11 [info] [VM] Module loaded successfully
+2026-04-25 00:53:18 [info] [KernelBugMonitor] State reset
+2026-04-25 00:53:18 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-25 00:53:18 [info] [VM:start] Bundle version: <blob>
+2026-04-25 00:53:18 [info] [VM:start] VM instance ID: aa1f9680-7483-4357-9eb2-e510877d06c9
+2026-04-25 00:53:18 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-25 00:53:20 [info] [VM:steps] download_and_sdk_prepare completed (1832ms)
+2026-04-25 00:53:20 [info] [VM:steps] load_swift_api started
+2026-04-25 00:53:20 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-25 00:53:20 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-25 00:53:20 [info] [Callbacks] VM event callbacks initialized
+2026-04-25 00:53:20 [info] [VM:steps] stop_existing_vm started
+2026-04-25 00:53:20 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-25 00:53:20 [info] [VM:steps] create_vm_config started
+2026-04-25 00:53:20 [info] [VM:steps] create_network started
+2026-04-25 00:53:20 [info] [VM:steps] create_network completed (0ms)
+2026-04-25 00:53:20 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-25 00:53:20 [info] [VM:steps] vm_boot started
+2026-04-25 00:53:20 [info] [VM:steps] vm_boot completed (81ms)
+2026-04-25 00:53:20 [info] [VM:steps] guest_vsock_connect started
+2026-04-25 00:53:27 [info] [VM:steps] guest_vsock_connect completed (7441ms)
+2026-04-25 00:53:27 [info] [VM:steps] static_ip_assignment started
+2026-04-25 00:53:27 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-25 00:53:27 [info] [VM:steps] guest_ready started
+2026-04-25 00:53:27 [info] [VM] Network status: NOT_CONNECTED
+2026-04-25 00:53:27 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-25 00:53:28 [info] [VM] Network status: CONNECTED
+2026-04-25 00:53:28 [info] [VM] Guest connection changed: true
+2026-04-25 00:53:28 [info] [VM:steps] guest_ready completed (407ms)
+2026-04-25 00:53:28 [info] [VM:steps] install_ca_certificates started
+2026-04-25 00:53:28 [info] [VM:steps] sdk_install started
+2026-04-25 00:53:28 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-25 00:53:28 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-25 00:53:29 [info] [VM] API reachability: REACHABLE
+2026-04-25 00:53:29 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-25 00:53:29 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-25 00:53:29 [info] [VM:start] Startup complete, total time: 11099ms
+2026-04-25 00:54:36 [info] [startVM] VM already connected
+2026-04-25 00:54:36 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-25 00:54:36 [warn] [Keepalive] Already running
+2026-04-25 07:49:40 [info] [startVM] VM already connected
+2026-04-25 07:49:40 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-25 07:49:40 [warn] [Keepalive] Already running
+2026-04-25 15:15:00 [info] [VM:shutdown] App quit, stopping VM (instance: aa1f9680-7483-4357-9eb2-e510877d06c9)...
+2026-04-25 15:15:00 [info] [Keepalive] Stopping
+2026-04-25 15:15:00 [info] [VM] Guest connection changed: false
+2026-04-25 15:15:00 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-25 15:15:03 [warn] [VM] VM stopped
+2026-04-25 15:15:03 [info] [VM:shutdown] Completed in 3466ms
+2026-04-25 15:15:07 [info] [VM] Loading @ant/claude-swift module...
+2026-04-25 15:15:07 [info] [VM] Module loaded successfully
+2026-04-25 18:37:16 [info] [VM] Loading @ant/claude-swift module...
+2026-04-25 18:37:16 [info] [VM] Module loaded successfully
+2026-04-25 18:37:21 [info] [KernelBugMonitor] State reset
+2026-04-25 18:37:21 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-25 18:37:21 [info] [VM:start] Bundle version: <blob>
+2026-04-25 18:37:21 [info] [VM:start] VM instance ID: f080bc4a-7387-4027-8a1d-726dea00eca2
+2026-04-25 18:37:21 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-25 18:37:21 [info] [VM:steps] download_and_sdk_prepare completed (3ms)
+2026-04-25 18:37:21 [info] [VM:steps] load_swift_api started
+2026-04-25 18:37:21 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-25 18:37:21 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-25 18:37:21 [info] [Callbacks] VM event callbacks initialized
+2026-04-25 18:37:21 [info] [VM:steps] stop_existing_vm started
+2026-04-25 18:37:21 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-25 18:37:21 [info] [VM:steps] create_vm_config started
+2026-04-25 18:37:21 [info] [VM:steps] create_network started
+2026-04-25 18:37:21 [info] [VM:steps] create_network completed (0ms)
+2026-04-25 18:37:21 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-25 18:37:21 [info] [VM:steps] vm_boot started
+2026-04-25 18:37:21 [info] [VM:steps] vm_boot completed (99ms)
+2026-04-25 18:37:21 [info] [VM:steps] guest_vsock_connect started
+2026-04-25 18:37:25 [info] [VM:steps] guest_vsock_connect completed (4229ms)
+2026-04-25 18:37:25 [info] [VM:steps] static_ip_assignment started
+2026-04-25 18:37:25 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-25 18:37:25 [info] [VM:steps] guest_ready started
+2026-04-25 18:37:25 [info] [VM] Network status: NOT_CONNECTED
+2026-04-25 18:37:25 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-25 18:37:25 [info] [VM] Network status: CONNECTED
+2026-04-25 18:37:25 [info] [VM] Guest connection changed: true
+2026-04-25 18:37:25 [info] [VM:steps] guest_ready completed (301ms)
+2026-04-25 18:37:25 [info] [VM:steps] install_ca_certificates started
+2026-04-25 18:37:26 [info] [VM:steps] install_ca_certificates completed (455ms)
+2026-04-25 18:37:26 [info] [VM:steps] sdk_install started
+2026-04-25 18:37:26 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-25 18:37:26 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-25 18:37:26 [info] [VM:steps] sdk_install completed (153ms)
+2026-04-25 18:37:26 [info] [VM:start] Startup complete, total time: 5310ms
+2026-04-25 18:37:26 [info] [VM] API reachability: REACHABLE
+2026-04-25 18:39:40 [info] [startVM] VM already connected
+2026-04-25 18:39:40 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-25 18:39:40 [warn] [Keepalive] Already running
+2026-04-25 20:36:51 [info] [VM:shutdown] App quit, stopping VM (instance: f080bc4a-7387-4027-8a1d-726dea00eca2)...
+2026-04-25 20:36:51 [info] [Keepalive] Stopping
+2026-04-25 20:36:51 [info] [VM] Guest connection changed: false
+2026-04-25 20:36:51 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-25 20:36:54 [warn] [VM] VM stopped
+2026-04-25 20:36:55 [info] [VM:shutdown] Completed in 3471ms
+2026-04-25 21:02:58 [info] [VM] Loading @ant/claude-swift module...
+2026-04-25 21:02:58 [info] [VM] Module loaded successfully
+2026-04-26 11:34:21 [info] [VM] Loading @ant/claude-swift module...
+2026-04-26 11:34:21 [info] [VM] Module loaded successfully
+2026-04-26 15:43:06 [info] [VM] Loading @ant/claude-swift module...
+2026-04-26 15:43:06 [info] [VM] Module loaded successfully
+2026-04-27 08:52:57 [info] [VM] Loading @ant/claude-swift module...
+2026-04-27 08:52:57 [info] [VM] Module loaded successfully
+2026-04-27 18:44:09 [info] [KernelBugMonitor] State reset
+2026-04-27 18:44:09 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-27 18:44:09 [info] [VM:start] Bundle version: <blob>
+2026-04-27 18:44:09 [info] [VM:start] VM instance ID: 492bc356-dd9c-48e0-960f-7b142e21df7e
+2026-04-27 18:44:09 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-27 18:44:09 [info] [VM:steps] download_and_sdk_prepare completed (1ms)
+2026-04-27 18:44:09 [info] [VM:steps] load_swift_api started
+2026-04-27 18:44:09 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-27 18:44:09 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-27 18:44:09 [info] [Callbacks] VM event callbacks initialized
+2026-04-27 18:44:09 [info] [VM:steps] stop_existing_vm started
+2026-04-27 18:44:09 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-27 18:44:09 [info] [VM:steps] create_vm_config started
+2026-04-27 18:44:09 [info] [VM:steps] create_network started
+2026-04-27 18:44:09 [info] [VM:steps] create_network completed (0ms)
+2026-04-27 18:44:09 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-27 18:44:09 [info] [VM:steps] vm_boot started
+2026-04-27 18:44:09 [info] [VM:steps] vm_boot completed (98ms)
+2026-04-27 18:44:09 [info] [VM:steps] guest_vsock_connect started
+2026-04-27 18:44:13 [info] [VM:steps] guest_vsock_connect completed (4314ms)
+2026-04-27 18:44:13 [info] [VM:steps] static_ip_assignment started
+2026-04-27 18:44:13 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-27 18:44:13 [info] [VM:steps] guest_ready started
+2026-04-27 18:44:13 [info] [VM] Network status: NOT_CONNECTED
+2026-04-27 18:44:13 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-27 18:44:13 [info] [VM] Network status: CONNECTED
+2026-04-27 18:44:13 [info] [VM] Guest connection changed: true
+2026-04-27 18:44:13 [info] [VM:steps] guest_ready completed (302ms)
+2026-04-27 18:44:13 [info] [VM:steps] install_ca_certificates started
+2026-04-27 18:44:14 [info] [VM:steps] sdk_install started
+2026-04-27 18:44:14 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 18:44:14 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-27 18:44:14 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-27 18:44:14 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-27 18:44:14 [info] [VM:start] Startup complete, total time: 5406ms
+2026-04-27 18:44:14 [info] [VM] API reachability: REACHABLE
+2026-04-27 18:48:23 [info] [startVM] VM already connected
+2026-04-27 18:48:23 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 18:48:23 [warn] [Keepalive] Already running
+2026-04-27 18:48:24 [info] [startVM] VM already connected
+2026-04-27 18:48:24 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 18:48:24 [warn] [Keepalive] Already running
+2026-04-27 20:38:33 [info] [startVM] VM already connected
+2026-04-27 20:38:33 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:38:33 [warn] [Keepalive] Already running
+2026-04-27 20:39:12 [info] [startVM] VM already connected
+2026-04-27 20:39:12 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:39:12 [warn] [Keepalive] Already running
+2026-04-27 20:40:32 [info] [startVM] VM already connected
+2026-04-27 20:40:32 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:40:32 [warn] [Keepalive] Already running
+2026-04-27 20:46:28 [info] [startVM] VM already connected
+2026-04-27 20:46:28 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:46:28 [warn] [Keepalive] Already running
+2026-04-27 20:46:29 [info] [startVM] VM already connected
+2026-04-27 20:46:29 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:46:29 [warn] [Keepalive] Already running
+2026-04-27 20:46:46 [info] [startVM] VM already connected
+2026-04-27 20:46:46 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:46:46 [warn] [Keepalive] Already running
+2026-04-27 20:46:52 [info] [startVM] VM already connected
+2026-04-27 20:46:52 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:46:53 [warn] [Keepalive] Already running
+2026-04-27 20:57:42 [info] [startVM] VM already connected
+2026-04-27 20:57:42 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 20:57:42 [warn] [Keepalive] Already running
+2026-04-27 21:02:19 [info] [startVM] VM already connected
+2026-04-27 21:02:19 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:19 [warn] [Keepalive] Already running
+2026-04-27 21:02:27 [info] [startVM] VM already connected
+2026-04-27 21:02:27 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:27 [warn] [Keepalive] Already running
+2026-04-27 21:02:39 [info] [startVM] VM already connected
+2026-04-27 21:02:39 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:39 [warn] [Keepalive] Already running
+2026-04-27 21:02:47 [info] [startVM] VM already connected
+2026-04-27 21:02:47 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:47 [warn] [Keepalive] Already running
+2026-04-27 21:02:47 [info] [startVM] VM already connected
+2026-04-27 21:02:47 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:48 [warn] [Keepalive] Already running
+2026-04-27 21:02:51 [info] [startVM] VM already connected
+2026-04-27 21:02:51 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:51 [warn] [Keepalive] Already running
+2026-04-27 21:02:56 [info] [startVM] VM already connected
+2026-04-27 21:02:56 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:02:56 [warn] [Keepalive] Already running
+2026-04-27 21:03:23 [info] [startVM] VM already connected
+2026-04-27 21:03:23 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:03:23 [warn] [Keepalive] Already running
+2026-04-27 21:03:54 [info] [startVM] VM already connected
+2026-04-27 21:03:54 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:03:54 [warn] [Keepalive] Already running
+2026-04-27 21:03:58 [info] [startVM] VM already connected
+2026-04-27 21:03:58 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:03:58 [warn] [Keepalive] Already running
+2026-04-27 21:04:01 [info] [startVM] VM already connected
+2026-04-27 21:04:01 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:04:01 [warn] [Keepalive] Already running
+2026-04-27 21:04:02 [info] [startVM] VM already connected
+2026-04-27 21:04:02 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:04:02 [warn] [Keepalive] Already running
+2026-04-27 21:04:03 [info] [startVM] VM already connected
+2026-04-27 21:04:03 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:04:03 [warn] [Keepalive] Already running
+2026-04-27 21:04:12 [info] [startVM] VM already connected
+2026-04-27 21:04:12 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:04:12 [warn] [Keepalive] Already running
+2026-04-27 21:09:31 [info] [startVM] VM already connected
+2026-04-27 21:09:31 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-27 21:09:31 [warn] [Keepalive] Already running
+2026-04-27 21:10:14 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:05 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:06 [warn] [vm-stderr oneshot-] rm: cannot remove '/sessions/youthful-amazing-mendel/mnt/<vol>/social-media-writer/references/instagram.md': Operation not permitted
+2026-04-27 21:20:06 [warn] [vm-stderr oneshot-] rm: cannot remove '/sessions/youthful-amazing-mendel/mnt/<vol>/social-media-writer/references/linkedin.md': Operation not permitted
+2026-04-27 21:20:06 [warn] [vm-stderr oneshot-] rm: cannot remove '/sessions/youthful-amazing-mendel/mnt/<vol>/social-media-writer/references/x-twitter.md': Operation not permitted
+2026-04-27 21:20:06 [warn] [vm-stderr oneshot-] rm: cannot remove '/sessions/youthful-amazing-mendel/mnt/<vol>/social-media-writer/references/voice-and-tone.md': Operation not permitted
+2026-04-27 21:20:06 [warn] [vm-stderr oneshot-] rm: cannot remove '/sessions/youthful-amazing-mendel/mnt/<vol>/social-media-writer/references/content-pillars.md': Operation not permitted
+2026-04-27 21:20:06 [warn] [vm-stderr oneshot-] rm: cannot remove '/sessions/youthful-amazing-mendel/mnt/<vol>/social-media-writer/SKILL.md': Operation not permitted
+2026-04-27 21:20:33 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:38 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:47 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:51 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:58 [info] [vmOneShot] Running: bash [2 arg(s)] as youthful-amazing-mendel
+2026-04-27 21:20:58 [warn] [vm-stderr oneshot-] warning: unable to unlink '/sessions/youthful-amazing-mendel/mnt/<vol>/.git/index.lock': Operation not permitted
+2026-04-27 21:27:23 [info] [VM:shutdown] App quit, stopping VM (instance: 492bc356-dd9c-48e0-960f-7b142e21df7e)...
+2026-04-27 21:27:23 [info] [Keepalive] Stopping
+2026-04-27 21:27:23 [info] [VM] Guest connection changed: false
+2026-04-27 21:27:23 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-27 21:27:27 [warn] [VM] VM stopped
+2026-04-27 21:27:27 [info] [VM:shutdown] Completed in 3449ms
+2026-04-28 09:46:18 [info] [VM] Loading @ant/claude-swift module...
+2026-04-28 09:46:18 [info] [VM] Module loaded successfully
+2026-04-28 09:46:18 [info] [KernelBugMonitor] State reset
+2026-04-28 09:46:18 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-28 09:46:18 [info] [VM:start] Bundle version: <blob>
+2026-04-28 09:46:18 [info] [VM:start] VM instance ID: 396aeec3-6914-4291-a382-8714d1c0860b
+2026-04-28 09:46:18 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-28 09:46:18 [info] [VM:steps] download_and_sdk_prepare completed (29ms)
+2026-04-28 09:46:18 [info] [VM:steps] load_swift_api started
+2026-04-28 09:46:18 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-28 09:46:18 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-28 09:46:18 [info] [Callbacks] VM event callbacks initialized
+2026-04-28 09:46:18 [info] [VM:steps] stop_existing_vm started
+2026-04-28 09:46:18 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-28 09:46:18 [info] [VM:steps] create_vm_config started
+2026-04-28 09:46:18 [info] [VM:steps] create_network started
+2026-04-28 09:46:18 [info] [VM:steps] create_network completed (0ms)
+2026-04-28 09:46:18 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-28 09:46:18 [info] [VM:steps] vm_boot started
+2026-04-28 09:46:18 [info] [VM:steps] vm_boot completed (513ms)
+2026-04-28 09:46:18 [info] [VM:steps] guest_vsock_connect started
+2026-04-28 09:46:22 [info] [VM:steps] guest_vsock_connect completed (3997ms)
+2026-04-28 09:46:22 [info] [VM:steps] static_ip_assignment started
+2026-04-28 09:46:22 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-28 09:46:22 [info] [VM:steps] guest_ready started
+2026-04-28 09:46:22 [info] [VM] Network status: NOT_CONNECTED
+2026-04-28 09:46:22 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-28 09:46:22 [info] [VM] Network status: CONNECTED
+2026-04-28 09:46:22 [info] [VM] Guest connection changed: true
+2026-04-28 09:46:22 [info] [VM:steps] guest_ready completed (301ms)
+2026-04-28 09:46:22 [info] [VM:steps] install_ca_certificates started
+2026-04-28 09:46:23 [info] [VM:steps] sdk_install started
+2026-04-28 09:46:23 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 09:46:23 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-28 09:46:23 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-28 09:46:23 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-28 09:46:23 [info] [VM:start] Startup complete, total time: 5522ms
+2026-04-28 09:46:23 [info] [VM] API reachability: REACHABLE
+2026-04-28 10:22:27 [info] [startVM] VM already connected
+2026-04-28 10:22:27 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 10:22:27 [warn] [Keepalive] Already running
+2026-04-28 10:22:28 [info] [startVM] VM already connected
+2026-04-28 10:22:28 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 10:22:28 [warn] [Keepalive] Already running
+2026-04-28 10:22:48 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 10:22:51 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 10:23:04 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 10:23:14 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 10:28:13 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 10:32:23 [info] [startVM] VM already connected
+2026-04-28 10:32:23 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 10:32:23 [warn] [Keepalive] Already running
+2026-04-28 10:32:40 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 11:46:01 [info] [startVM] VM already connected
+2026-04-28 11:46:01 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 11:46:01 [warn] [Keepalive] Already running
+2026-04-28 11:48:55 [info] [startVM] VM already connected
+2026-04-28 11:48:55 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 11:48:55 [warn] [Keepalive] Already running
+2026-04-28 11:49:17 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 11:58:19 [info] [startVM] VM already connected
+2026-04-28 11:58:19 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 11:58:19 [warn] [Keepalive] Already running
+2026-04-28 11:58:26 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 12:11:32 [info] [startVM] VM already connected
+2026-04-28 12:11:32 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 12:11:32 [warn] [Keepalive] Already running
+2026-04-28 12:20:27 [info] [startVM] VM already connected
+2026-04-28 12:20:27 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 12:20:27 [warn] [Keepalive] Already running
+2026-04-28 12:23:07 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 12:26:00 [info] [vmOneShot] Running: bash [2 arg(s)] as gifted-vibrant-planck
+2026-04-28 19:46:27 [info] [warm] Fetching VM hash for version 1.5220.0
+2026-04-28 19:46:27 [info] [warm] VM hash for version 1.5220.0: <blob>
+2026-04-28 19:46:27 [info] [warm] VM SHA matches current version, skipping
+2026-04-28 20:15:12 [info] [VM:shutdown] App quit, stopping VM (instance: 396aeec3-6914-4291-a382-8714d1c0860b)...
+2026-04-28 20:15:12 [info] [Keepalive] Stopping
+2026-04-28 20:15:12 [info] [VM] Guest connection changed: false
+2026-04-28 20:15:12 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-28 20:15:15 [warn] [VM] VM stopped
+2026-04-28 20:15:15 [info] [VM:shutdown] Completed in 3454ms
+2026-04-28 20:15:19 [info] [VM] Loading @ant/claude-swift module...
+2026-04-28 20:15:19 [info] [VM] Module loaded successfully
+2026-04-28 20:15:27 [info] [warm] Fetching VM hash for version 1.5220.0
+2026-04-28 20:15:27 [info] [warm] VM hash for version 1.5220.0: <blob>
+2026-04-28 20:15:27 [info] [warm] VM SHA matches current version, skipping
+2026-04-28 21:53:12 [info] [VM] Loading @ant/claude-swift module...
+2026-04-28 21:53:12 [info] [VM] Module loaded successfully
+2026-04-28 21:59:15 [info] [KernelBugMonitor] State reset
+2026-04-28 21:59:15 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-28 21:59:15 [info] [VM:start] Bundle version: <blob>
+2026-04-28 21:59:15 [info] [VM:start] VM instance ID: 45b1953c-d5bb-48db-abb9-6662c761bfa4
+2026-04-28 21:59:15 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-28 21:59:15 [info] [VM:steps] download_and_sdk_prepare completed (2ms)
+2026-04-28 21:59:15 [info] [VM:steps] load_swift_api started
+2026-04-28 21:59:15 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-28 21:59:15 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-28 21:59:15 [info] [Callbacks] VM event callbacks initialized
+2026-04-28 21:59:15 [info] [VM:steps] stop_existing_vm started
+2026-04-28 21:59:15 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-28 21:59:15 [info] [VM:steps] create_vm_config started
+2026-04-28 21:59:15 [info] [VM:steps] create_network started
+2026-04-28 21:59:15 [info] [VM:steps] create_network completed (0ms)
+2026-04-28 21:59:15 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-28 21:59:15 [info] [VM:steps] vm_boot started
+2026-04-28 21:59:15 [info] [VM:steps] vm_boot completed (100ms)
+2026-04-28 21:59:15 [info] [VM:steps] guest_vsock_connect started
+2026-04-28 21:59:23 [info] [VM:steps] guest_vsock_connect completed (7328ms)
+2026-04-28 21:59:23 [info] [VM:steps] static_ip_assignment started
+2026-04-28 21:59:23 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-28 21:59:23 [info] [VM:steps] guest_ready started
+2026-04-28 21:59:23 [info] [VM] Network status: NOT_CONNECTED
+2026-04-28 21:59:23 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-28 21:59:23 [info] [VM] Network status: CONNECTED
+2026-04-28 21:59:23 [info] [VM] Guest connection changed: true
+2026-04-28 21:59:23 [info] [VM:steps] guest_ready completed (303ms)
+2026-04-28 21:59:23 [info] [VM:steps] install_ca_certificates started
+2026-04-28 21:59:23 [info] [VM:steps] sdk_install started
+2026-04-28 21:59:23 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 21:59:23 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-28 21:59:23 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-28 21:59:23 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-28 21:59:23 [info] [VM:start] Startup complete, total time: 8406ms
+2026-04-28 21:59:24 [info] [VM] API reachability: REACHABLE
+2026-04-28 22:01:24 [info] [startVM] VM already connected
+2026-04-28 22:01:24 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:01:24 [warn] [Keepalive] Already running
+2026-04-28 22:10:13 [info] [startVM] VM already connected
+2026-04-28 22:10:13 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:10:13 [warn] [Keepalive] Already running
+2026-04-28 22:10:17 [info] [startVM] VM already connected
+2026-04-28 22:10:17 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:10:17 [warn] [Keepalive] Already running
+2026-04-28 22:10:19 [info] [startVM] VM already connected
+2026-04-28 22:10:19 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:10:19 [warn] [Keepalive] Already running
+2026-04-28 22:10:20 [info] [startVM] VM already connected
+2026-04-28 22:10:20 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:10:20 [warn] [Keepalive] Already running
+2026-04-28 22:10:22 [info] [startVM] VM already connected
+2026-04-28 22:10:22 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:10:22 [warn] [Keepalive] Already running
+2026-04-28 22:11:05 [info] [startVM] VM already connected
+2026-04-28 22:11:05 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:11:05 [warn] [Keepalive] Already running
+2026-04-28 22:11:06 [info] [startVM] VM already connected
+2026-04-28 22:11:06 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:11:06 [warn] [Keepalive] Already running
+2026-04-28 22:13:40 [info] [startVM] VM already connected
+2026-04-28 22:13:40 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:13:40 [warn] [Keepalive] Already running
+2026-04-28 22:21:35 [info] [startVM] VM already connected
+2026-04-28 22:21:35 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:21:35 [warn] [Keepalive] Already running
+2026-04-28 22:28:34 [info] [startVM] VM already connected
+2026-04-28 22:28:34 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.119
+2026-04-28 22:28:34 [warn] [Keepalive] Already running
+2026-04-28 22:31:40 [info] [VM:shutdown] App quit, stopping VM (instance: 45b1953c-d5bb-48db-abb9-6662c761bfa4)...
+2026-04-28 22:31:40 [info] [Keepalive] Stopping
+2026-04-28 22:31:40 [info] [VM] Guest connection changed: false
+2026-04-28 22:31:40 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-28 22:31:43 [warn] [VM] VM stopped
+2026-04-28 22:31:43 [info] [VM:shutdown] Completed in 3484ms
+2026-04-29 09:11:17 [info] [VM] Loading @ant/claude-swift module...
+2026-04-29 09:11:17 [info] [VM] Module loaded successfully
+2026-04-29 10:11:21 [info] [warm] Fetching VM hash for version 1.5354.0
+2026-04-29 10:11:21 [info] [warm] VM hash for version 1.5354.0: <blob>
+2026-04-29 10:11:21 [info] [warm] VM SHA matches current version, skipping
+2026-04-29 10:38:37 [info] [VM] Loading @ant/claude-swift module...
+2026-04-29 10:38:37 [info] [VM] Module loaded successfully
+2026-04-29 11:51:11 [info] [VM] Loading @ant/claude-swift module...
+2026-04-29 11:51:11 [info] [VM] Module loaded successfully
+2026-04-29 22:24:47 [info] [VM] Loading @ant/claude-swift module...
+2026-04-29 22:24:47 [info] [VM] Module loaded successfully
+2026-04-29 22:32:45 [info] [KernelBugMonitor] State reset
+2026-04-29 22:32:45 [info] [VM:start] Beginning startup, bundlePath=~/Library/Application Support/Claude/vm_bundles/claudevm.bundle
+2026-04-29 22:32:45 [info] [VM:start] Bundle version: <blob>
+2026-04-29 22:32:45 [info] [VM:start] VM instance ID: 6208f6f1-8a77-4c0b-96d1-3f9b1fabf724
+2026-04-29 22:32:45 [info] [VM:steps] download_and_sdk_prepare started
+2026-04-29 22:32:46 [info] [VM:steps] download_and_sdk_prepare completed (1446ms)
+2026-04-29 22:32:46 [info] [VM:steps] load_swift_api started
+2026-04-29 22:32:46 [info] [VM:steps] load_swift_api completed (0ms)
+2026-04-29 22:32:46 [info] [Callbacks] Initializing VM event callbacks...
+2026-04-29 22:32:46 [info] [Callbacks] VM event callbacks initialized
+2026-04-29 22:32:46 [info] [VM:steps] stop_existing_vm started
+2026-04-29 22:32:46 [info] [VM:steps] stop_existing_vm completed (0ms)
+2026-04-29 22:32:46 [info] [VM:steps] create_vm_config started
+2026-04-29 22:32:46 [info] [VM:steps] create_network started
+2026-04-29 22:32:46 [info] [VM:steps] create_network completed (0ms)
+2026-04-29 22:32:46 [info] [VM:steps] create_vm_config completed (0ms)
+2026-04-29 22:32:46 [info] [VM:steps] vm_boot started
+2026-04-29 22:32:47 [info] [VM:steps] vm_boot completed (86ms)
+2026-04-29 22:32:47 [info] [VM:steps] guest_vsock_connect started
+2026-04-29 22:32:54 [info] [VM] Network status: NOT_CONNECTED
+2026-04-29 22:32:54 [info] [VM:network] Not connected, will show error in 30000ms if not resolved
+2026-04-29 22:32:54 [info] [VM:steps] guest_vsock_connect completed (7820ms)
+2026-04-29 22:32:54 [info] [VM:steps] static_ip_assignment started
+2026-04-29 22:32:54 [info] [VM:steps] static_ip_assignment completed (0ms)
+2026-04-29 22:32:54 [info] [VM:steps] guest_ready started
+2026-04-29 22:32:55 [info] [VM] Network status: CONNECTED
+2026-04-29 22:32:55 [info] [VM] Guest connection changed: true
+2026-04-29 22:32:55 [info] [VM:steps] guest_ready completed (291ms)
+2026-04-29 22:32:55 [info] [VM:steps] install_ca_certificates started
+2026-04-29 22:32:55 [info] [VM:steps] sdk_install started
+2026-04-29 22:32:55 [info] [postConnect] Installing SDK: subpath=Users/matiasromero/Library/Application Support/Claude/claude-code-vm, version=2.1.121
+2026-04-29 22:32:55 [info] [VM:steps] install_ca_certificates completed (0ms)
+2026-04-29 22:32:55 [info] [VM] API reachability: REACHABLE
+2026-04-29 22:32:55 [info] [Keepalive] Starting (interval=2000ms)
+2026-04-29 22:32:55 [info] [VM:steps] sdk_install completed (0ms)
+2026-04-29 22:32:55 [info] [VM:start] Startup complete, total time: 10437ms
+2026-04-30 21:49:34 [info] [VM:shutdown] App quit, stopping VM (instance: 6208f6f1-8a77-4c0b-96d1-3f9b1fabf724)...
+2026-04-30 21:49:34 [info] [Keepalive] Stopping
+2026-04-30 21:49:34 [info] [VM] Guest connection changed: false
+2026-04-30 21:49:34 [info] [VM] Guest disconnected during graceful quit, cleanly exiting 0 active processes
+2026-04-30 21:49:37 [warn] [VM] VM stopped
+2026-04-30 21:49:37 [info] [VM:shutdown] Completed in 3478ms
+2026-05-01 00:58:03 [info] [VM] Loading @ant/claude-swift module...
+2026-05-01 00:58:03 [info] [VM] Module loaded successfully
+2026-05-01 14:34:31 [info] [VM] Loading @ant/claude-swift module...
+2026-05-01 14:34:31 [info] [VM] Module loaded successfully
+2026-05-02 07:24:05 [info] [VM] Loading @ant/claude-swift module...
+2026-05-02 07:24:05 [info] [VM] Module loaded successfully
+2026-05-02 11:28:40 [info] [VM] Loading @ant/claude-swift module...
+2026-05-02 11:28:40 [info] [VM] Module loaded successfully
+2026-05-02 18:06:16 [info] [VM] Loading @ant/claude-swift module...
+2026-05-02 18:06:16 [info] [VM] Module loaded successfully
+2026-05-03 11:54:47 [info] [VM] Loading @ant/claude-swift module...
+2026-05-03 11:54:47 [info] [VM] Module loaded successfully
+2026-05-04 09:48:27 [info] [VM] Loading @ant/claude-swift module...
+2026-05-04 09:48:27 [info] [VM] Module loaded successfully
+2026-05-05 08:44:47 [info] [VM] Loading @ant/claude-swift module...
+2026-05-05 08:44:47 [info] [VM] Module loaded successfully
+2026-05-05 19:14:14 [info] [VM] Loading @ant/claude-swift module...
+2026-05-05 19:14:14 [info] [VM] Module loaded successfully
+2026-05-06 11:08:51 [info] [VM] Loading @ant/claude-swift module...
+2026-05-06 11:08:51 [info] [VM] Module loaded successfully
+2026-05-06 14:50:55 [info] [VM] Loading @ant/claude-swift module...
+2026-05-06 14:50:55 [info] [VM] Module loaded successfully
+2026-05-06 15:51:02 [info] [warm] Fetching VM hash for version 1.6259.1
+2026-05-06 15:51:02 [info] [warm] VM hash for version 1.6259.1: <blob>
+2026-05-06 15:51:02 [info] [warm] VM SHA matches current version, skipping
+2026-05-06 18:42:11 [info] [VM] Loading @ant/claude-swift module...
+2026-05-06 18:42:11 [info] [VM] Module loaded successfully
+2026-05-07 14:31:11 [info] [VM] Loading @ant/claude-swift module...
+2026-05-07 14:31:11 [info] [VM] Module loaded successfully
+2026-05-08 10:36:47 [info] [VM] Loading @ant/claude-swift module...
+2026-05-08 10:36:47 [info] [VM] Module loaded successfully
+2026-05-08 11:36:34 [info] [warm] Fetching VM hash for version 1.6608.0
+2026-05-08 11:36:34 [info] [warm] VM hash for version 1.6608.0: <blob>
+2026-05-08 11:36:34 [info] [warm] VM SHA matches current version, skipping
+2026-05-08 13:12:44 [info] [VM] Loading @ant/claude-swift module...
+2026-05-08 13:12:44 [info] [VM] Module loaded successfully
+2026-05-08 15:12:51 [info] [warm] Fetching VM hash for version 1.6608.1
+2026-05-08 15:12:51 [info] [warm] VM hash for version 1.6608.1: <blob>
+2026-05-08 15:12:51 [info] [warm] VM SHA matches current version, skipping
+2026-05-08 21:53:56 [info] [VM] Loading @ant/claude-swift module...
+2026-05-08 21:53:56 [info] [VM] Module loaded successfully
+2026-05-08 21:54:03 [info] [warm] Fetching VM hash for version 1.6608.2
+2026-05-08 21:54:03 [info] [warm] VM hash for version 1.6608.2: <blob>
+2026-05-08 21:54:03 [info] [warm] VM SHA matches current version, skipping
+2026-05-08 21:54:16 [info] [VM] Loading @ant/claude-swift module...
+2026-05-08 21:54:16 [info] [VM] Module loaded successfully

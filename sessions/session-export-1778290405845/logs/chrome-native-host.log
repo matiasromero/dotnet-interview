@@ -1,0 +1,72 @@
+[2026-04-30 12:37:33 INFO chrome-native-host] Chrome native host starting (version 0.1.0)
+[2026-04-30 12:37:33 INFO chrome-native-host] Creating socket listener: /tmp/claude-mcp-browser-bridge-matiasromero/1544.sock
+[2026-04-30 12:37:33 INFO chrome-native-host] Created socket directory: /tmp/claude-mcp-browser-bridge-matiasromero
+[2026-04-30 12:37:33 INFO chrome-native-host] Socket created successfully at: /tmp/claude-mcp-browser-bridge-matiasromero/1544.sock
+[2026-04-30 12:37:33 INFO chrome-native-host] Socket location: /tmp/claude-mcp-browser-bridge-matiasromero/1544.sock
+[2026-04-30 12:37:33 INFO chrome-native-host] Entering main message loop
+[2026-04-30 12:37:33 INFO chrome-native-host] Socket server listening for connections
+[2026-04-30 21:49:26 INFO chrome-native-host] Chrome disconnected (EOF received)
+[2026-04-30 21:49:26 INFO chrome-native-host] Shutting down chrome native host
+[2026-04-30 21:49:26 INFO chrome-native-host] Cleaned up socket: /tmp/claude-mcp-browser-bridge-matiasromero/1544.sock
+[2026-04-30 21:49:26 INFO chrome-native-host] Removed empty socket directory
+[2026-04-30 21:49:26 INFO chrome-native-host] Chrome native host stopped
+[2026-05-01 10:21:25 INFO chrome-native-host] Chrome native host starting (version 0.1.0)
+[2026-05-01 10:21:25 INFO chrome-native-host] Creating socket listener: /tmp/claude-mcp-browser-bridge-matiasromero/14579.sock
+[2026-05-01 10:21:25 INFO chrome-native-host] Created socket directory: /tmp/claude-mcp-browser-bridge-matiasromero
+[2026-05-01 10:21:25 INFO chrome-native-host] Socket created successfully at: /tmp/claude-mcp-browser-bridge-matiasromero/14579.sock
+[2026-05-01 10:21:25 INFO chrome-native-host] Socket location: /tmp/claude-mcp-browser-bridge-matiasromero/14579.sock
+[2026-05-01 10:21:25 INFO chrome-native-host] Entering main message loop
+[2026-05-01 10:21:25 INFO chrome-native-host] Socket server listening for connections
+[2026-05-01 10:22:02 INFO chrome-native-host] Chrome disconnected (EOF received)
+[2026-05-01 10:22:02 INFO chrome-native-host] Shutting down chrome native host
+[2026-05-01 10:22:02 INFO chrome-native-host] Cleaned up socket: /tmp/claude-mcp-browser-bridge-matiasromero/14579.sock
+[2026-05-01 10:22:02 INFO chrome-native-host] Removed empty socket directory
+[2026-05-01 10:22:02 INFO chrome-native-host] Chrome native host stopped
+[2026-05-01 12:26:12 INFO chrome-native-host] Chrome native host starting (version 0.1.0)
+[2026-05-01 12:26:12 INFO chrome-native-host] Creating socket listener: /tmp/claude-mcp-browser-bridge-matiasromero/40628.sock
+[2026-05-01 12:26:12 INFO chrome-native-host] Created socket directory: /tmp/claude-mcp-browser-bridge-matiasromero
+[2026-05-01 12:26:12 INFO chrome-native-host] Socket created successfully at: /tmp/claude-mcp-browser-bridge-matiasromero/40628.sock
+[2026-05-01 12:26:12 INFO chrome-native-host] Socket location: /tmp/claude-mcp-browser-bridge-matiasromero/40628.sock
+[2026-05-01 12:26:12 INFO chrome-native-host] Entering main message loop
+[2026-05-01 12:26:12 INFO chrome-native-host] Socket server listening for connections
+[2026-05-01 12:26:14 INFO chrome-native-host] Chrome disconnected (EOF received)
+[2026-05-01 12:26:14 INFO chrome-native-host] Shutting down chrome native host
+[2026-05-01 12:26:14 INFO chrome-native-host] Cleaned up socket: /tmp/claude-mcp-browser-bridge-matiasromero/40628.sock
+[2026-05-01 12:26:14 INFO chrome-native-host] Removed empty socket directory
+[2026-05-01 12:26:14 INFO chrome-native-host] Chrome native host stopped
+[2026-05-01 18:19:43 INFO chrome-native-host] Chrome native host starting (version 0.1.0)
+[2026-05-01 18:19:43 INFO chrome-native-host] Creating socket listener: /tmp/claude-mcp-browser-bridge-matiasromero/7803.sock
+[2026-05-01 18:19:43 INFO chrome-native-host] Created socket directory: /tmp/claude-mcp-browser-bridge-matiasromero
+[2026-05-01 18:19:43 INFO chrome-native-host] Socket created successfully at: /tmp/claude-mcp-browser-bridge-matiasromero/7803.sock
+[2026-05-01 18:19:43 INFO chrome-native-host] Socket location: /tmp/claude-mcp-browser-bridge-matiasromero/7803.sock
+[2026-05-01 18:19:43 INFO chrome-native-host] Entering main message loop
+[2026-05-01 18:19:43 INFO chrome-native-host] Socket server listening for connections
+[2026-05-01 18:29:36 INFO chrome-native-host] Chrome disconnected (EOF received)
+[2026-05-01 18:29:36 INFO chrome-native-host] Shutting down chrome native host
+[2026-05-01 18:29:36 INFO chrome-native-host] Cleaned up socket: /tmp/claude-mcp-browser-bridge-matiasromero/7803.sock
+[2026-05-01 18:29:36 INFO chrome-native-host] Removed empty socket directory
+[2026-05-01 18:29:36 INFO chrome-native-host] Chrome native host stopped
+[2026-05-01 18:48:51 INFO chrome-native-host] Chrome native host starting (version 0.1.0)
+[2026-05-01 18:48:51 INFO chrome-native-host] Creating socket listener: /tmp/claude-mcp-browser-bridge-matiasromero/9851.sock
+[2026-05-01 18:48:51 INFO chrome-native-host] Created socket directory: /tmp/claude-mcp-browser-bridge-matiasromero
+[2026-05-01 18:48:51 INFO chrome-native-host] Socket created successfully at: /tmp/claude-mcp-browser-bridge-matiasromero/9851.sock
+[2026-05-01 18:48:51 INFO chrome-native-host] Socket location: /tmp/claude-mcp-browser-bridge-matiasromero/9851.sock
+[2026-05-01 18:48:51 INFO chrome-native-host] Entering main message loop
+[2026-05-01 18:48:51 INFO chrome-native-host] Socket server listening for connections
+[2026-05-01 18:48:53 INFO chrome-native-host] Chrome disconnected (EOF received)
+[2026-05-01 18:48:53 INFO chrome-native-host] Shutting down chrome native host
+[2026-05-01 18:48:53 INFO chrome-native-host] Cleaned up socket: /tmp/claude-mcp-browser-bridge-matiasromero/9851.sock
+[2026-05-01 18:48:53 INFO chrome-native-host] Removed empty socket directory
+[2026-05-01 18:48:53 INFO chrome-native-host] Chrome native host stopped
+[2026-05-04 15:27:54 INFO chrome-native-host] Chrome native host starting (version 0.1.0)
+[2026-05-04 15:27:54 INFO chrome-native-host] Creating socket listener: /tmp/claude-mcp-browser-bridge-matiasromero/20460.sock
+[2026-05-04 15:27:54 INFO chrome-native-host] Created socket directory: /tmp/claude-mcp-browser-bridge-matiasromero
+[2026-05-04 15:27:54 INFO chrome-native-host] Socket created successfully at: /tmp/claude-mcp-browser-bridge-matiasromero/20460.sock
+[2026-05-04 15:27:54 INFO chrome-native-host] Socket location: /tmp/claude-mcp-browser-bridge-matiasromero/20460.sock
+[2026-05-04 15:27:54 INFO chrome-native-host] Entering main message loop
+[2026-05-04 15:27:54 INFO chrome-native-host] Socket server listening for connections
+[2026-05-04 17:33:35 INFO chrome-native-host] Chrome disconnected (EOF received)
+[2026-05-04 17:33:35 INFO chrome-native-host] Shutting down chrome native host
+[2026-05-04 17:33:35 INFO chrome-native-host] Cleaned up socket: /tmp/claude-mcp-browser-bridge-matiasromero/20460.sock
+[2026-05-04 17:33:35 INFO chrome-native-host] Removed empty socket directory
+[2026-05-04 17:33:35 INFO chrome-native-host] Chrome native host stopped
