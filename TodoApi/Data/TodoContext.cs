@@ -21,7 +21,18 @@ public class TodoContext : DbContext, ISyncDbContext
                 !SyncMappings.Any(m => m.EntityType == SyncEntityType.TodoList && m.LocalId == l.Id)
             )
             .OrderBy(l => l.Id)
-            .Select(l => new LocalTodoListRecord(l.Id, l.Name, l.UpdatedAt))
+            .Select(l => new LocalTodoListRecord(
+                l.Id,
+                l.Name,
+                l.UpdatedAt,
+                l.Items.Select(i => new LocalTodoListItemRecord(
+                        i.Id,
+                        i.Description,
+                        i.IsCompleted,
+                        i.UpdatedAt
+                    ))
+                    .ToList()
+            ))
             .ToListAsync(cancellationToken);
 
     public async Task<List<MappedTodoListRecord>> GetMappedTodoListsAsync(
@@ -59,7 +70,18 @@ public class TodoContext : DbContext, ISyncDbContext
                     m.EntityType == SyncEntityType.TodoList && m.LocalId == l.Id
                 )
             )
-            .Select(l => new LocalTodoListRecord(l.Id, l.Name, l.UpdatedAt))
+            .Select(l => new LocalTodoListRecord(
+                l.Id,
+                l.Name,
+                l.UpdatedAt,
+                l.Items.Select(i => new LocalTodoListItemRecord(
+                        i.Id,
+                        i.Description,
+                        i.IsCompleted,
+                        i.UpdatedAt
+                    ))
+                    .ToList()
+            ))
             .SingleOrDefaultAsync(cancellationToken);
 
     public async Task ApplyExternalCreateAsync(
@@ -83,6 +105,41 @@ public class TodoContext : DbContext, ISyncDbContext
                 ExternalUpdatedAtAtSync = plan.ExternalUpdatedAt,
             }
         );
+
+        if (plan.Items.Count > 0)
+        {
+            var newItems = plan
+                .Items.Select(ei => new TodoListItem
+                {
+                    Description = ei.Description,
+                    IsCompleted = ei.Completed,
+                    TodoListId = local.Id,
+                    UpdatedAt = ei.ExternalUpdatedAt,
+                })
+                .ToList();
+            TodoListItem.AddRange(newItems);
+            await SaveChangesAsync(cancellationToken);
+
+            var now = DateTime.UtcNow;
+            for (int i = 0; i < newItems.Count; i++)
+            {
+                var ei = plan.Items[i];
+                SyncMappings.Add(
+                    new SyncMapping
+                    {
+                        EntityType = SyncEntityType.TodoListItem,
+                        LocalId = newItems[i].Id,
+                        ExternalId = ei.ExternalItemId,
+                        ParentExternalId = plan.ExternalId,
+                        IdempotencyKey = Guid.NewGuid(),
+                        LastSyncedAt = now,
+                        LocalUpdatedAtAtSync = ei.ExternalUpdatedAt,
+                        ExternalUpdatedAtAtSync = ei.ExternalUpdatedAt,
+                    }
+                );
+            }
+        }
+
         await SaveChangesAsync(cancellationToken);
     }
 
@@ -109,6 +166,173 @@ public class TodoContext : DbContext, ISyncDbContext
         mapping.ExternalUpdatedAtAtSync = plan.ExternalUpdatedAt;
         mapping.LastSyncedAt = DateTime.UtcNow;
 
+        await SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<List<LocalTodoListItemRecord>> GetUnmappedTodoListItemsWithMappedParentAsync(
+        CancellationToken cancellationToken = default
+    ) =>
+        await TodoListItem
+            .Where(i =>
+                !SyncMappings.Any(m =>
+                    m.EntityType == SyncEntityType.TodoListItem && m.LocalId == i.Id
+                )
+                && SyncMappings.Any(m =>
+                    m.EntityType == SyncEntityType.TodoList && m.LocalId == i.TodoListId
+                )
+            )
+            .OrderBy(i => i.Id)
+            .Select(i => new LocalTodoListItemRecord(
+                i.Id,
+                i.Description,
+                i.IsCompleted,
+                i.UpdatedAt
+            ))
+            .ToListAsync(cancellationToken);
+
+    public async Task<List<MappedTodoListItemRecord>> GetMappedTodoListItemsAsync(
+        CancellationToken cancellationToken = default
+    ) =>
+        await SyncMappings
+            .Where(m => m.EntityType == SyncEntityType.TodoListItem)
+            .Join(
+                TodoListItem,
+                m => m.LocalId,
+                i => i.Id,
+                (m, i) =>
+                    new MappedTodoListItemRecord(
+                        m.Id,
+                        m.LocalId,
+                        m.ExternalId,
+                        m.ParentExternalId!,
+                        m.IdempotencyKey,
+                        m.LastSyncedAt,
+                        m.LocalUpdatedAtAtSync,
+                        m.ExternalUpdatedAtAtSync,
+                        i.Description,
+                        i.IsCompleted,
+                        i.UpdatedAt
+                    )
+            )
+            .ToListAsync(cancellationToken);
+
+    public async Task<List<OrphanedItemMapping>> GetOrphanedItemMappingsAsync(
+        CancellationToken cancellationToken = default
+    ) =>
+        await SyncMappings
+            .Where(m =>
+                m.EntityType == SyncEntityType.TodoListItem
+                && !TodoListItem.Any(i => i.Id == m.LocalId)
+            )
+            .Select(m => new OrphanedItemMapping(m.Id, m.ExternalId, m.ParentExternalId!))
+            .ToListAsync(cancellationToken);
+
+    public async Task<LocalTodoListItemRecord?> FindUnmappedLocalItemByIdAsync(
+        long localId,
+        long parentListId,
+        CancellationToken cancellationToken = default
+    ) =>
+        await TodoListItem
+            .Where(i =>
+                i.Id == localId
+                && i.TodoListId == parentListId
+                && !SyncMappings.Any(m =>
+                    m.EntityType == SyncEntityType.TodoListItem && m.LocalId == i.Id
+                )
+            )
+            .Select(i => new LocalTodoListItemRecord(
+                i.Id,
+                i.Description,
+                i.IsCompleted,
+                i.UpdatedAt
+            ))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task ApplyExternalItemCreateAsync(
+        ApplyExternalItemCreatePlan plan,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var item = new TodoListItem
+        {
+            Description = plan.Description,
+            IsCompleted = plan.Completed,
+            TodoListId = plan.ParentLocalId,
+            UpdatedAt = plan.ExternalUpdatedAt,
+        };
+        TodoListItem.Add(item);
+        await SaveChangesAsync(cancellationToken);
+
+        SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = item.Id,
+                ExternalId = plan.ExternalItemId,
+                ParentExternalId = plan.ParentExternalId,
+                IdempotencyKey = plan.IdempotencyKey,
+                LastSyncedAt = DateTime.UtcNow,
+                LocalUpdatedAtAtSync = plan.ExternalUpdatedAt,
+                ExternalUpdatedAtAtSync = plan.ExternalUpdatedAt,
+            }
+        );
+        await SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApplyRemoteWinsItemAsync(
+        ApplyRemoteWinsItemPlan plan,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var item =
+            await TodoListItem.FindAsync(new object?[] { plan.LocalId }, cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"ApplyRemoteWinsItemAsync: local TodoListItem {plan.LocalId} not found"
+            );
+        var mapping =
+            await SyncMappings.FindAsync(new object?[] { plan.MappingId }, cancellationToken)
+            ?? throw new InvalidOperationException(
+                $"ApplyRemoteWinsItemAsync: SyncMapping {plan.MappingId} not found"
+            );
+
+        item.Description = plan.NewDescription;
+        item.IsCompleted = plan.NewCompleted;
+        item.UpdatedAt = plan.ExternalUpdatedAt;
+
+        mapping.LocalUpdatedAtAtSync = plan.ExternalUpdatedAt;
+        mapping.ExternalUpdatedAtAtSync = plan.ExternalUpdatedAt;
+        mapping.LastSyncedAt = DateTime.UtcNow;
+
+        await SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task PersistEmbeddedItemMappingsAsync(
+        PersistEmbeddedItemMappingsPlan plan,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (plan.Items.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var item in plan.Items)
+        {
+            SyncMappings.Add(
+                new SyncMapping
+                {
+                    EntityType = SyncEntityType.TodoListItem,
+                    LocalId = item.LocalItemId,
+                    ExternalId = item.ExternalItemId,
+                    ParentExternalId = plan.ParentExternalId,
+                    IdempotencyKey = Guid.NewGuid(),
+                    LastSyncedAt = now,
+                    LocalUpdatedAtAtSync = item.LocalUpdatedAt,
+                    ExternalUpdatedAtAtSync = item.ExternalUpdatedAt,
+                }
+            );
+        }
         await SaveChangesAsync(cancellationToken);
     }
 

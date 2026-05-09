@@ -8,5 +8,6 @@ public record ApplyExternalCreatePlan(
     string ExternalId,
     string Name,
     DateTime ExternalUpdatedAt,
-    Guid IdempotencyKey
+    Guid IdempotencyKey,
+    IReadOnlyList<EmbeddedExternalItem> Items
 );

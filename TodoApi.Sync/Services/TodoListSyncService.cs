@@ -319,7 +319,8 @@ public class TodoListSyncService : ITodoListSyncService
                 external.Id,
                 external.Name,
                 external.UpdatedAt,
-                Guid.NewGuid()
+                Guid.NewGuid(),
+                Array.Empty<EmbeddedExternalItem>()
             ),
             ct
         );
