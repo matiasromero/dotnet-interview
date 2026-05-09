@@ -166,4 +166,47 @@ public class TodoListServiceTests
             Assert.Empty(result);
         }
     }
+
+    [Fact]
+    public async Task CreateAsync_WhenCalled_SetsUpdatedAtToCurrentTime()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+            var dto = new CreateTodoList { Name = "Fresh" };
+            var before = DateTime.UtcNow;
+
+            var result = await service.CreateAsync(dto);
+
+            var after = DateTime.UtcNow;
+            Assert.InRange(result.UpdatedAt, before.AddSeconds(-1), after.AddSeconds(1));
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenIdExists_BumpsUpdatedAt()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            var oldTimestamp = DateTime.UtcNow.AddHours(-1);
+            context.TodoList.Add(
+                new TodoList
+                {
+                    Id = 1,
+                    Name = "Task 1",
+                    UpdatedAt = oldTimestamp,
+                }
+            );
+            context.SaveChanges();
+
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+            var dto = new UpdateTodoList { Name = "Renamed" };
+
+            var result = await service.UpdateAsync(1, dto);
+
+            Assert.True(result);
+            var updated = await context.TodoList.FindAsync(1L);
+            Assert.True(updated.UpdatedAt > oldTimestamp);
+        }
+    }
 }

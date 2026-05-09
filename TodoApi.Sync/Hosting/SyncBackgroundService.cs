@@ -44,26 +44,49 @@ public sealed class SyncBackgroundService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
+            using (var scope = _scopes.CreateScope())
             {
-                using var scope = _scopes.CreateScope();
                 var svc = scope.ServiceProvider.GetRequiredService<ITodoListSyncService>();
-                var result = await svc.PushTodoListsAsync(stoppingToken);
-                _logger.LogInformation(
-                    "Sync tick completed: total={Total} pushed={Pushed} failed={Failed} status={Status}",
-                    result.Total,
-                    result.Pushed,
-                    result.Failed,
-                    result.Status
-                );
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Sync tick threw — will retry on next interval");
+
+                try
+                {
+                    var pushResult = await svc.PushTodoListsAsync(stoppingToken);
+                    _logger.LogInformation(
+                        "Sync push tick: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        pushResult.Total,
+                        pushResult.Pushed,
+                        pushResult.Failed,
+                        pushResult.Status
+                    );
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Sync push tick threw — continuing with pull");
+                }
+
+                try
+                {
+                    var pullResult = await svc.PullTodoListsAsync(stoppingToken);
+                    _logger.LogInformation(
+                        "Sync pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
+                        pullResult.Total,
+                        pullResult.Pushed,
+                        pullResult.Failed,
+                        pullResult.Status
+                    );
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Sync pull tick threw — will retry on next interval");
+                }
             }
 
             try

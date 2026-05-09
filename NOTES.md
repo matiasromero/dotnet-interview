@@ -20,6 +20,8 @@ Configuración tipada con `IOptions<ExternalApiOptions>` (DataAnnotations + `Val
 
 **Slice 1 entrega solo PUSH de TodoLists local→externo.** PULL, items, deletes y updates quedan para slices siguientes (ver Areas for Improvement).
 
+**Slice 2 agrega PULL externo→local + reconciliación bidireccional para TodoLists.** Cada tick del background service ahora ejecuta `PushTodoListsAsync` y después `PullTodoListsAsync` en el mismo scope (try/catch independientes, una falla no impide la otra). El push agrega un `Guid IdempotencyKey` por intent: se manda como header `Idempotency-Key` en el POST y se persiste en `SyncMapping.IdempotencyKey` (unique). El pull hace `GET /todolists` (full scan, sin filtros server-side disponibles) y para cada entry decide entre tres casos: (A) ya mapeado → reconcile last-write-wins comparando `local.UpdatedAt` vs `external.updated_at` (tie-break al externo); (B) `source_id` parseable apuntando a un local sin mapping → ADOPTION (cierra el gap del crash mid-write de slice 1); (C) ninguno de los anteriores → crear `TodoList` local con `UpdatedAt = external.updated_at`. Items quedan fuera del slice (slice 3); deletes externos quedan fuera (slice 4).
+
 ## Key Design Decisions
 
 | Decisión | Alternativas descartadas | Por qué | Trade-off aceptado | Slice |
@@ -30,6 +32,11 @@ Configuración tipada con `IOptions<ExternalApiOptions>` (DataAnnotations + `Val
 | `Microsoft.Extensions.Http.Resilience` (Polly v8 oficial) | `Polly` + `Microsoft.Extensions.Http.Polly` (legacy v7) | Línea oficial de Microsoft post-Polly v8, integración nativa con `IHttpClientFactory`, telemetría built-in. | Una capa de abstracción más; menos código a cambio. | 1 |
 | Save por lista (no batch) en el push loop | Batch al final del run | Idempotencia simple: un crash mid-batch deja mappings ya escritos intactos, el siguiente run no re-pushea esos. | Más round-trips a DB (irrelevante para volúmenes esperados de listas nuevas por tick). | 1 |
 | `source_id` como correlation key bidireccional | Tabla de mapping mágica con UUIDs internos | El externo expone `source_id` explícito en el contrato. Push manda `local.Id.ToString()`; futuros pulls pueden detectar entries originados localmente sin lookup adicional. | Acopla el contrato externo al schema local de IDs (long stringificado). | 1 |
+| `Idempotency-Key` header + columna en `SyncMapping` + adoption en pull | Adoption-only sin header; pre-flight GET antes de cada POST | El server externo NO documenta el header (no deduplica hoy), pero la combinación es forward-compatible y el cierre real del gap del crash mid-write viene del pull adoptando huérfanos por `source_id`. La columna unique permite tracing/debug. | Una columna `Guid` que durante semanas no aporta deduplicación server-side; un Guid extra generado por intent. | 2 |
+| Last-write-wins por `updated_at` con tie-break al externo (`>=`) | Last-writer-wins simétrico (rechazo en empate); local-always-wins; conflict-table que dispara revisión humana | El server externo es authoritative para sus timestamps (los genera él, ISO 8601, monotónicos). En empate exacto, preferir el externo es estable y predecible: el siguiente push local lo va a sobreescribir si el usuario lo edita después. | Pierde el cambio local en empates exactos (raro pero posible si dos clientes pegan al mismo segundo). Sin notificación al usuario del cambio externo aplicado. | 2 |
+| Items fuera del slice 2 | Sync de items en mismo slice del pull de lists | El contrato externo no tiene POST aislado de items (solo se crean al crear la lista, o vía PATCH/DELETE individuales). Esa asimetría merece brainstorm propio: ¿re-POST de la lista entera con items nuevos? ¿outbox de items? Decisión arquitectónica que no quiero atar al pull de lists. | Items locales nuevos no se sincronizan al externo hasta slice 3. Pull de lists trae items anidados pero los descartamos. | 2 |
+| Pull serial después del push en el mismo tick | Tick alternado push/pull; dos hosted services con intervals separados | Mantiene orden mental: push primero acepta el "winner local"; el pull después concilia y adopta huérfanos creados por crashes del push del mismo o tick previo. Un solo `SyncBackgroundService`. | Un push lento demora el pull. Aceptable para los volúmenes esperados. | 2 |
+| `ApplyExternalCreateAsync` con dos `SaveChanges` (TodoList → SyncMapping) | Una sola transacción explícita con `BeginTransaction` | InMemory provider de EF ignora transacciones; documentar simple es más simple que ramas por provider. El gap entre los dos saves es microscópico y, si crashea, el pull siguiente vuelve a crear (caso edge documentado). | Posibilidad teórica de dejar un local sin mapping → al siguiente tick se duplica el local (sin manera de correlacionarlo via source_id porque la entry externa no lo tenía). Documentado como Edge Case. | 2 |
 
 ## Resilience and Error Handling
 
@@ -54,8 +61,19 @@ El orden importa: si Timeout fuera outer, los retries compartirían una sola ven
 
 - El query de candidatos (`GetUnmappedTodoListsAsync`) usa anti-join contra `SyncMappings`: solo considera TodoLists sin mapping. Lists ya synced se skipean en runs subsiguientes — verificado por el test `PushTodoListsAsync_WithExistingMapping_OnlyPushesUnmapped`.
 - Save por lista: cada mapping se persiste inmediatamente después de su `client.Create`. Si el proceso muere a mitad de un batch, las listas ya synceadas tienen su mapping y no se re-pushean.
+- **Slice 2:** cada intent de push genera un `Guid IdempotencyKey` que viaja como header `Idempotency-Key` en el POST y se persiste en `SyncMapping.IdempotencyKey` (unique). El server externo no procesa el header hoy (no está en el spec OpenAPI) — es forward-compatible para cuando lo soporte.
 
-**Gap conocido:** entre `client.CreateTodoListAsync` (éxito) y `_db.SaveChangesAsync` (mapping save) hay una ventana donde un crash deja un duplicado externo sin mapping local. El siguiente run lo re-pushearía. Mitigación correcta: outbox pattern, fuera de scope para slice 1. Cuando se implemente PULL (slice 2), la reconciliación por `source_id` adoptará estos huérfanos automáticamente.
+**Adoption (pull → cierre del gap del slice 1):**
+
+El gap del crash mid-write entre `CreateTodoListAsync` (éxito) y `SaveChangesAsync(mapping)` queda **cerrado por el pull**. Cuando el pull encuentra un external entry con `source_id` parseable a un `long` que coincide con un `TodoList.Id` local que **no tiene mapping**, crea el mapping en lugar de tratar la entry como nueva. Verificado por el test `PullTodoListsAsync_ExternalWithLocalSourceIdNoMapping_AdoptsAsMapping`.
+
+Limitación: la adoption solo funciona si el server preservó literalmente el `source_id` que el push le mandó. Si lo normaliza/transforma (p.ej. con un prefijo), se rompe la correlación y el huérfano se quedaría. La spec actual no documenta normalización; asumimos preservation literal.
+
+**Pull: partial-failure semantics:**
+
+- `GET /todolists` falla → status `Failed` con `ItemsProcessed = 0` y `ItemsFailed = 0` (no llegamos a iterar). Verificado por `PullTodoListsAsync_GetThrows_StatusFailedAndZeroProcessed`.
+- Por cada external item, try/catch independiente. Una falla individual (PATCH externo, ApplyExternalCreate, etc.) incrementa `failed` y continúa con el siguiente.
+- Status final del run: misma semántica que push (`failed == 0` → `Succeeded`; `processed == 0 && failed > 0` → `Failed`; mixto → `Partial`).
 
 **Logging:**
 
@@ -70,21 +88,32 @@ El orden importa: si Timeout fuera outer, los retries compartirían una sola ven
 - [x] **Falla total (N de N)** — status `Failed`, ningún mapping nuevo. Test `PushTodoListsAsync_AllFail_StatusFailed`.
 - [x] **No hay candidatos (DB vacía o todo mapeado)** — `SyncRun` se persiste con `Succeeded` + 0 counts. Test `PushTodoListsAsync_NoLocalLists_ReturnsZeroAndSucceeded`.
 - [x] **Sync deshabilitado por config** — `SyncBackgroundService.ExecuteAsync` retorna inmediato si `SyncOptions.Enabled = false`. Test smoke verifica start/stop limpio.
-- [x] **API externa devuelve body vacío en 2xx** — el client lanza `ExternalApiException` con mensaje "POST todolists returned empty body".
+- [x] **API externa devuelve body vacío en 2xx** — el client lanza `ExternalApiException` con mensaje "POST/GET/PATCH todolists returned empty body".
 - [x] **5xx / 408 / 429** — Polly retry. Si el circuit breaker abre, los siguientes ticks fallan rápido hasta que cierre.
 - [x] **4xx genérico** — el client lanza `ExternalApiException`; el service la captura como falla individual. NO se reintenta (4xx genéricos no son transient).
+- [x] **Crash mid-write del push (gap de slice 1)** — el pull adopta el huérfano externo via `source_id == local.Id.ToString()` y crea el mapping local. Test `PullTodoListsAsync_ExternalWithLocalSourceIdNoMapping_AdoptsAsMapping`.
+- [x] **Pull: external más nuevo que el local mapeado** — remote wins, `local.Name` y `local.UpdatedAt` se sobreescriben con `external.updated_at`. Test `PullTodoListsAsync_MappedExternalNewer_UpdatesLocalName`.
+- [x] **Pull: local más nuevo que el external mapeado** — local wins, PATCH al externo con el nuevo Name. Test `PullTodoListsAsync_MappedLocalNewer_PatchesExternal`.
+- [x] **Pull: ambos lados cambiaron desde la última sync** — last-write-wins por timestamp; tie (`==`) gana el externo. Tests `..._BothChanged_ExternalWinsOnTimestamp`, `..._LocalWinsOnTimestamp`, `..._TieGoesToExternal`.
+- [x] **Pull: nada cambió** — solo bumps `LastSyncedAt`, no toca local ni externo. Test `PullTodoListsAsync_MappedNoChanges_BumpsLastSyncedOnly`.
+- [x] **Pull: external sin contraparte local** — `source_id` null o no parseable → CASO C, crea `TodoList` local con `UpdatedAt = external.updated_at`. Test `PullTodoListsAsync_ExternalWithUnknownSourceId_CreatesLocalAndMapping`.
+- [x] **Pull: GET /todolists falla en bulk** — status `Failed` sin iterar items. Test `PullTodoListsAsync_GetThrows_StatusFailedAndZeroProcessed`.
+- [x] **Pull: falla parcial mid-loop** — try/catch por entry; status `Partial`, los exitosos persisten. Test `PullTodoListsAsync_OneOfThreeFails_StatusPartial`.
+- [ ] **`source_id` parseable pero apuntando a un local que ya no existe** — el `FindUnmappedLocalByIdAsync` retorna null y caemos a CASO C: creamos un local nuevo. Aceptable para slice 2 (no manejamos deletes). Si el local fue borrado a propósito, se va a recrear desde el externo — comportamiento simétrico al "external creó algo nuevo". Slice 4 (deletes) decidirá la política definitiva.
+- [ ] **Crash entre los dos `SaveChanges` de `ApplyExternalCreateAsync`** — quedaría un `TodoList` local sin mapping. Como la entry externa no tiene `source_id` apuntando al local nuevo (vino de afuera), el siguiente pull la trataría como CASO C de nuevo y crearía OTRO local + mapping → duplicado local. Riesgo bajo, ventana microscópica. Mitigación correcta: transacción explícita o outbox. Documentado como deuda.
 - [ ] **External devuelve un `id` > 64 chars** — la column `ExternalId` es `nvarchar(64)`. La insert fallaría en SqlServer real. No documentamos length en el contrato externo; asumimos UUIDs (~36 chars). Mitigation futura: subir el límite o fallar explícito al validar el response. Riesgo bajo para el challenge.
-- [ ] **Concurrencia entre dos hosts del API corriendo simultáneamente** — el sync correría 2x sobre las mismas listas. Mappings tienen unique index `(EntityType, LocalId)`, así que el segundo perdería con DbUpdateException — no estamos manejándola, runs concurrentes se pisan. Single-instance assumption por ahora.
-- [ ] **External "deleted" un list que tenemos mapeado** — slice 1 no consulta el externo, no se entera. Slice 2 (PULL) deberá decidir conflict resolution.
+- [ ] **Concurrencia entre dos hosts del API corriendo simultáneamente** — el sync correría 2x sobre las mismas listas. Mappings tienen unique index `(EntityType, LocalId)` + `IdempotencyKey`, así que el segundo perdería con DbUpdateException — no estamos manejándola, runs concurrentes se pisan. Single-instance assumption por ahora.
+- [ ] **External "deleted" un list que tenemos mapeado** — slice 2 no detecta deletes (un mapping cuya `ExternalId` ya no aparece en el GET es un delete remoto). El mapping queda obsoleto. Slice 4 (DELETE bidireccional) deberá decidir conflict resolution.
+- [ ] **Server externo NO preserva `source_id` literalmente** — si lo normaliza/transforma, la adoption del pull falla y los huérfanos del crash mid-write se quedan. La spec actual no documenta normalización. Si pasara, pull crearía duplicados locales (otro `TodoList` con el mismo nombre). Mitigación futura: outbox pattern.
 
 ## Areas for Improvement
 
-Roadmap explícito de slices futuros y deuda técnica que sale del slice 1:
+Roadmap explícito de slices futuros y deuda técnica que sale del slice 2:
 
-- **Slice 2 — PULL externo→local + reconciliación.** Adopt orphans creados externamente, detectar deletes por ausencia, conflict resolution por `updated_at`. Este slice también va a usar `source_id` para detectar entries que ya tenemos mapeados sin doble-creación.
-- **Slice 3 — Sync de `TodoListItem`.** El contrato externo no expone POST aislado de items; solo se crean dentro del POST inicial del list, o vía PATCH/DELETE individuales. Workaround a definir (re-POST list + items, o tracking más fino). Merece slice propio.
-- **Slice 4 — DELETE / UPDATE bidireccional.** Necesita política de conflict resolution (last-writer-wins por `updated_at`, soft-delete con tombstones, etc.).
-- **Outbox pattern** para garantía exactly-once en push (eliminar el gap de duplicado externo en crash mid-write).
+- ~~**Slice 2 — PULL externo→local + reconciliación.**~~ **Cerrado.** Adopta huérfanos por `source_id`, last-write-wins en TodoLists, sin detección de deletes (slice 4).
+- **Slice 3 — Sync de `TodoListItem`.** El contrato externo no expone POST aislado de items; solo se crean dentro del POST inicial del list, o vía PATCH/DELETE individuales. Workaround a definir (re-POST list + items, o tracking más fino). Merece slice propio. **Promovido a próximo slice.**
+- **Slice 4 — DELETE bidireccional.** Detección de deletes externos (mapping cuya ExternalId desapareció del GET) + delete locales propagados al externo. Necesita política (mirror, soft-delete con tombstones, etc.).
+- **Outbox pattern** para garantía exactly-once en push y para resolver el gap microscópico de `ApplyExternalCreateAsync` (dos saves no atómicos). La adoption del slice 2 ya cubre el caso del crash mid-write del push, así que la urgencia bajó pero la deuda persiste.
 - **Telemetría / métricas** de runs (Prometheus exporter, tracing, etc.). Hoy solo logs estructurados.
 - **Endpoint manual `POST /api/sync/run`** para trigger on-demand (útil en dev y debugging).
 - **README** con instrucciones para levantar la API externa (docker compose con el repo upstream `crunchloop/challenge-senior-engineer`) y verificar end-to-end.
@@ -93,6 +122,10 @@ Roadmap explícito de slices futuros y deuda técnica que sale del slice 1:
 - **`SyncOptions` sin validación** — defaults sanos, pero un `Interval = 0` o `StartupDelay` negativo serían pathológicos. Custom validator en slice futuro.
 - **Single-instance assumption** del background service — multiples hosts corriendo el mismo proceso ejecutarían el sync en paralelo, con condiciones de carrera. Locking distribuido o leader election fuera de scope.
 - **`db.Database.Migrate()` solo en Development** — heredado del repo. En Production hay que aplicar migrations out-of-band antes de levantar la app, o el primer save del sync explota.
+- **`SyncRunResult.Pushed` mal nombrado para pulls** — el record se usa para los dos sentidos pero el campo se llama `Pushed`. Semánticamente significa "items procesados con éxito" (independiente de la dirección). Renombrar a `Processed` cuando convenga romper compatibilidad de tests.
+- **`GET /todolists` sin paginación ni filtros** del lado externo — full scan cada tick. OK para volúmenes del challenge; si crece, requiere o cambio del contrato externo (`?modified_since=…`) o cache local del último `updated_at` visto y filtrado client-side. Fuera de scope.
+- **`ApplyExternalCreateAsync` con dos `SaveChanges`** — InMemory provider no soporta transacciones; el outbox formal lo cierra de raíz. Microscópico el riesgo, documentado como Edge Case.
+- **Pull no detecta deletes externos** — un mapping cuya ExternalId desapareció del GET queda obsoleto. Slice 4.
 
 ## Assumptions
 
@@ -105,6 +138,10 @@ Supuestos explícitos del slice 1 — cada uno responde "¿qué se rompe si no e
 - **Single-instance del host.** El background service no tiene leader election ni locking distribuido. Múltiples instancias corriendo en paralelo intentarían pushear las mismas listas; el unique index en `SyncMappings` previene corrupción pero la segunda instancia perdería con `DbUpdateException` no manejada.
 - **`Sync:Interval = 60s` es razonable** para los volúmenes esperados (listas creadas por interfaces de usuario, no por batch). Si el throughput sube significativamente, considerar interval más bajo o trigger por evento (slice futuro).
 - **El base address del externo termina sin slash final** (default `http://localhost:8080`). El typed client compone con path relativo `"todolists"`. Si alguien configura `BaseAddress = "http://localhost:8080/api"` (con segmento de path), el resolve concatena mal y los requests salen a `http://localhost:8080/todolists` perdiendo `/api`. Mitigación: documentar en el README o validar en `ExternalApiOptions`. Riesgo bajo en el challenge porque el spec usa root.
+- **El server externo preserva `source_id` literalmente.** Slice 2 depende de esto para que la adoption del pull funcione: enviamos `local.Id.ToString()` como `source_id` en el push y, post-crash mid-write, esperamos que el GET nos lo devuelva intacto para reconciliarlo. Si el server lo normaliza/transforma, los huérfanos no se adoptan y se duplican locales en el siguiente pull (CASO C). La spec OpenAPI no documenta normalización; asumimos preservation literal.
+- **Tie-break en empate exacto de `updated_at` lo gana el externo (regla `>=`).** El server es authoritative para sus timestamps (los genera él). En el caso (raro) en que dos clientes pegan a la misma fracción de segundo, perdemos el cambio local. Si el usuario re-edita después, el siguiente push lo va a sobreescribir. Sin notificación al usuario del cambio externo aplicado.
+- **Clock UTC del server externo y del local "razonablemente" alineados.** Sin sync horario formal (NTP, etc.), drift de segundos es tolerable; drift de minutos podría disparar last-write-wins erróneo (ej. local ganaría aunque el externo ya aplicó un cambio más reciente real-time). Asumimos cluster homogéneo o NTP en todos los hosts.
+- **El `Idempotency-Key` header que mandamos no es procesado por el server hoy** (no documentado en la spec OpenAPI). Lo enviamos forward-compatible. Si nunca lo soporta, no daña — el cierre del gap viene del adoption en pull.
 
 ---
 
@@ -166,3 +203,29 @@ _Cronológico, append-only. Una entrada por slice cerrado o por decisión cargad
   - Documentar en README cómo levantar la API externa para verificación end-to-end real (docker compose con el repo upstream `crunchloop/challenge-senior-engineer`).
   - Sellar tipos con `sealed` donde aplique (ya hecho en `ExternalApiException`, `SyncBackgroundService`).
   - El plan original asumía `((DbContext)_db).Set<TodoList>()`; el plan vivo (este Decision Log) registra que la implementación final usa un método dedicado en la interface — para cualquier futuro slice que extienda el sync, el patrón a seguir es agregar métodos específicos al `ISyncDbContext` en lugar de filtrar la query del lado del service con tipos importados.
+
+### 2026-05-09 — Slice 2: PULL externo→local + Idempotency-Key + last-write-wins
+
+- **Decisión:** el slice agrega tres piezas que se complementan: (1) **Idempotency-Key**: `Guid` por intent de push, mandado como header HTTP y persistido en `SyncMapping.IdempotencyKey` (unique). (2) **PULL** de TodoLists: `GET /todolists` por tick, decisión por entry entre tres casos — A. mapped → reconcile last-write-wins; B. `source_id` parseable apunta a un local sin mapping → adoption (cierra el gap del crash mid-write de slice 1); C. otherwise → crear `TodoList` local. (3) **Last-write-wins** comparando `local.UpdatedAt` vs `external.updated_at`, con tie-break al externo (regla `>=`). Para soportar (3), `TodoList.UpdatedAt` es columna nueva (default `GETUTCDATE()` en SqlServer real); el `TodoListService` la setea en Create/Update. Cadencia: push y pull serial en el mismo tick del `SyncBackgroundService`, try/catch independientes.
+- **Alternativas descartadas:**
+  - **Adoption-only sin header `Idempotency-Key`** — más simple, pero deja el sistema sin nada preparado para cuando el server agregue soporte. El usuario pidió explícitamente "idempotency key", así que la implementación literal vale aún sabiendo que el server no la procesa hoy.
+  - **Pre-flight GET antes de cada POST** para chequear si ya existe `source_id` matching — cierra el gap del crash dentro del mismo tick, pero si el pull corre en el mismo tick (que sí corre), el GET es redundante. Más round-trips.
+  - **Items sincronizados en este mismo slice** — el contrato externo no expone POST aislado de items, solo se crean al crear la lista o vía PATCH/DELETE individuales. Esa asimetría merece brainstorm propio (re-POST entera vs outbox de items vs other). Slice 3 propio.
+  - **Detección de deletes externos en este slice** — el user dijo "conflictos de modificación, last-write-wins". No mencionó deletes. Slice 4.
+  - **Tick alternado push/pull o dos hosted services con intervals separados** — over-engineering para los volúmenes esperados. Serial mismo tick mantiene orden mental.
+  - **`SyncRunResult` separado por dirección (`PushRunResult` vs `PullRunResult`)** — innecesario; el record existente sirve si interpretamos `Pushed` como "items procesados exitosamente". Documentado como deuda menor en Areas for Improvement.
+  - **Una sola `BeginTransaction` para `ApplyExternalCreateAsync`** — InMemory provider las ignora; ramas por provider complican los tests. Dos `SaveChanges` consecutivos con edge case documentado es aceptable.
+- **Por qué:** la decisión cardinal es **cerrar el gap del slice 1 (duplicado externo en crash mid-write) sin esperar al outbox formal**. La adoption en pull lo hace de forma elegante: el pull tiene que matchear por `source_id` igual para evitar duplicados locales — agregar la rama "matchea local sin mapping → crear mapping" cuesta poco y resuelve el problema. El header `Idempotency-Key` cumple literalmente lo pedido por el usuario y queda forward-compatible sin costo. El last-write-wins con tie al externo es la política más simple que tiene sentido (server es authoritative para sus timestamps). Para implementar todo esto sin tocar el patrón de slice 1: nuevos métodos en `ISyncDbContext` (`GetMappedTodoListsAsync`, `FindUnmappedLocalByIdAsync`, `ApplyExternalCreateAsync`, `ApplyRemoteWinsAsync`) — el sync project sigue sin referenciar `TodoApi.Models`. Las operaciones que solo tocan `SyncMappings` se quedan en el service (igual que el push de slice 1).
+- **Supuestos nuevos:**
+  - El server externo preserva `source_id` literalmente. Si lo normaliza, la adoption falla y los huérfanos del crash mid-write se duplican.
+  - Tie-break en empate exacto de `updated_at` lo gana el externo. El usuario re-editando después dispara el push, así que la pérdida es transitoria.
+  - Clock UTC del externo "razonablemente" alineado con el local. Drift de segundos OK; minutos no.
+  - El `Idempotency-Key` header viaja al server pero no se procesa hoy. La columna local sirve para tracing/debug.
+  - El `JsonSerializer` deserializa `created_at`/`updated_at` (ISO 8601 con `Z`) como `DateTime` con `Kind = Utc`. Verificado por el test del cliente externo (`UpdateTodoListAsync_HappyPath_PatchesAndDeserializesResponse` compara contra `new DateTime(..., DateTimeKind.Utc)`).
+- **Deuda / follow-ups:**
+  - Items (slice 3) — ahora promovido a próximo.
+  - Detección de deletes externos (slice 4).
+  - Outbox formal — el adoption del pull cubre el caso del crash mid-write del push, pero NO cubre el caso del crash entre los dos `SaveChanges` de `ApplyExternalCreateAsync`. La urgencia bajó pero la deuda persiste.
+  - `SyncRunResult.Pushed` mal nombrado para pulls — renombrar a `Processed` cuando convenga romper compat.
+  - `GET /todolists` sin paginación/filtros del lado externo — full scan cada tick. Aceptable para el challenge; si crece, requiere cambio de contrato externo o cache de `updated_at` local.
+  - Renombrar `LocalTodoListRecord` a algo más neutro (lo usamos tanto para "unmapped local" en push como en CASO B del pull). Bajo prioridad.

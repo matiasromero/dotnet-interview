@@ -27,7 +27,7 @@ public class TodoListService : ITodoListService
 
     public async Task<TodoList> CreateAsync(CreateTodoList dto)
     {
-        var todoList = new TodoList { Name = dto.Name };
+        var todoList = new TodoList { Name = dto.Name, UpdatedAt = DateTime.UtcNow };
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
         _logger.LogInformation(
@@ -48,6 +48,7 @@ public class TodoListService : ITodoListService
         }
 
         todoList.Name = dto.Name;
+        todoList.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         _logger.LogInformation("Updated TodoList {TodoListId}", id);
         return true;

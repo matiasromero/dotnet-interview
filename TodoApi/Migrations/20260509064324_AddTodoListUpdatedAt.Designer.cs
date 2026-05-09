@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace TodoApi.Migrations
 {
     [DbContext(typeof(TodoContext))]
-    partial class TodoContextModelSnapshot : ModelSnapshot
+    [Migration("20260509064324_AddTodoListUpdatedAt")]
+    partial class AddTodoListUpdatedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -82,25 +85,13 @@ namespace TodoApi.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<DateTime?>("ExternalUpdatedAtAtSync")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("IdempotencyKey")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<DateTime>("LastSyncedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<long>("LocalId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime?>("LocalUpdatedAtAtSync")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("IdempotencyKey")
-                        .IsUnique();
 
                     b.HasIndex("EntityType", "ExternalId")
                         .IsUnique();
