@@ -1,17 +1,38 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
+using TodoApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder
     .Services.AddDbContext<TodoContext>(opt =>
         opt.UseSqlServer(builder.Configuration.GetConnectionString("TodoContext"))
     )
+    .AddScoped<ITodoListService, TodoListService>()
+    .AddScoped<ITodoListItemService, TodoListItemService>()
     .AddEndpointsApiExplorer()
+    .AddSwaggerGen(options =>
+    {
+        options.SwaggerDoc("v1", new OpenApiInfo { Title = "TodoApi", Version = "v1" });
+    })
     .AddControllers();
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", "TodoApi v1");
+    });
+
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<TodoContext>();
+    db.Database.Migrate();
+}
 
 app.UseAuthorization();
 app.MapControllers();
