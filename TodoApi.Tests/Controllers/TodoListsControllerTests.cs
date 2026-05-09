@@ -174,10 +174,7 @@ public class TodoListsControllerTests
             var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
             var controller = new TodoListsController(service);
 
-            await controller.PutTodoList(
-                2,
-                new Dtos.UpdateTodoList { Name = "Changed Task 2" }
-            );
+            await controller.PutTodoList(2, new Dtos.UpdateTodoList { Name = "Changed Task 2" });
 
             var updated = await context.TodoList.FindAsync(2L);
             Assert.Equal("Changed Task 2", updated.Name);

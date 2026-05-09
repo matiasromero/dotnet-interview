@@ -24,29 +24,35 @@ public class TodoListItemServiceTests
         context.TodoList.Add(list1);
         context.TodoList.Add(list2);
 
-        context.TodoListItem.Add(new TodoListItem
-        {
-            Id = 1,
-            Description = "Item 1",
-            IsCompleted = false,
-            TodoListId = 1
-        });
+        context.TodoListItem.Add(
+            new TodoListItem
+            {
+                Id = 1,
+                Description = "Item 1",
+                IsCompleted = false,
+                TodoListId = 1,
+            }
+        );
 
-        context.TodoListItem.Add(new TodoListItem
-        {
-            Id = 2,
-            Description = "Item 2",
-            IsCompleted = true,
-            TodoListId = 1
-        });
+        context.TodoListItem.Add(
+            new TodoListItem
+            {
+                Id = 2,
+                Description = "Item 2",
+                IsCompleted = true,
+                TodoListId = 1,
+            }
+        );
 
-        context.TodoListItem.Add(new TodoListItem
-        {
-            Id = 3,
-            Description = "Item 3",
-            IsCompleted = false,
-            TodoListId = 2
-        });
+        context.TodoListItem.Add(
+            new TodoListItem
+            {
+                Id = 3,
+                Description = "Item 3",
+                IsCompleted = false,
+                TodoListId = 2,
+            }
+        );
 
         context.SaveChanges();
     }
@@ -58,7 +64,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             var result = await service.GetAllAsync(1);
 
@@ -73,7 +82,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             var result = await service.GetAllAsync(99);
 
@@ -88,7 +100,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             var result = await service.GetByIdAsync(1, 1);
 
@@ -106,7 +121,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             var result = await service.GetByIdAsync(1, 99);
 
@@ -121,7 +139,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             // Item 3 belongs to TodoListId 2, not 1
             var result = await service.GetByIdAsync(1, 3);
@@ -137,7 +158,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var dto = new CreateTodoListItem { Description = "New Item" };
 
             var result = await service.CreateAsync(1, dto);
@@ -157,7 +181,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
             var dto = new CreateTodoListItem { Description = "New Item" };
 
             var result = await service.CreateAsync(99, dto);
@@ -174,12 +201,11 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
-            var dto = new UpdateTodoListItem
-            {
-                Description = "Updated Item 1",
-                IsCompleted = true
-            };
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+            var dto = new UpdateTodoListItem { Description = "Updated Item 1", IsCompleted = true };
 
             var result = await service.UpdateAsync(1, 1, dto);
 
@@ -197,12 +223,11 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
-            var dto = new UpdateTodoListItem
-            {
-                Description = "Updated",
-                IsCompleted = true
-            };
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+            var dto = new UpdateTodoListItem { Description = "Updated", IsCompleted = true };
 
             var result = await service.UpdateAsync(1, 99, dto);
 
@@ -217,12 +242,11 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
-            var dto = new UpdateTodoListItem
-            {
-                Description = "Updated",
-                IsCompleted = true
-            };
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+            var dto = new UpdateTodoListItem { Description = "Updated", IsCompleted = true };
 
             // Item 3 belongs to TodoListId 2, not 1
             var result = await service.UpdateAsync(1, 3, dto);
@@ -238,7 +262,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             var result = await service.DeleteAsync(1, 2);
 
@@ -254,7 +281,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             var result = await service.DeleteAsync(1, 99);
 
@@ -270,7 +300,10 @@ public class TodoListItemServiceTests
         {
             PopulateDatabaseContext(context);
 
-            var service = new TodoListItemService(context, NullLogger<TodoListItemService>.Instance);
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
 
             // Item 3 belongs to TodoListId 2, not 1
             var result = await service.DeleteAsync(1, 3);

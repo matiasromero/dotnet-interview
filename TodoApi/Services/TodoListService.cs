@@ -30,7 +30,11 @@ public class TodoListService : ITodoListService
         var todoList = new TodoList { Name = dto.Name };
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
-        _logger.LogInformation("Created TodoList {TodoListId} with name {Name}", todoList.Id, todoList.Name);
+        _logger.LogInformation(
+            "Created TodoList {TodoListId} with name {Name}",
+            todoList.Id,
+            todoList.Name
+        );
         return todoList;
     }
 

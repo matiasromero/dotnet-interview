@@ -46,7 +46,11 @@ namespace TodoApi.Controllers
 
         // PUT: api/todolists/5/items/3
         [HttpPut("{id}")]
-        public async Task<ActionResult> PutTodoListItem(long todoListId, long id, UpdateTodoListItem payload)
+        public async Task<ActionResult> PutTodoListItem(
+            long todoListId,
+            long id,
+            UpdateTodoListItem payload
+        )
         {
             var updated = await _todoListItemService.UpdateAsync(todoListId, id, payload);
 
@@ -61,7 +65,10 @@ namespace TodoApi.Controllers
 
         // POST: api/todolists/5/items
         [HttpPost]
-        public async Task<ActionResult<TodoListItem>> PostTodoListItem(long todoListId, CreateTodoListItem payload)
+        public async Task<ActionResult<TodoListItem>> PostTodoListItem(
+            long todoListId,
+            CreateTodoListItem payload
+        )
         {
             var item = await _todoListItemService.CreateAsync(todoListId, payload);
 

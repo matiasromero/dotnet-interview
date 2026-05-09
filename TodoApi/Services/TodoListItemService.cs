@@ -24,9 +24,7 @@ public class TodoListItemService : ITodoListItemService
             return null;
         }
 
-        return await _context.TodoListItem
-            .Where(i => i.TodoListId == todoListId)
-            .ToListAsync();
+        return await _context.TodoListItem.Where(i => i.TodoListId == todoListId).ToListAsync();
     }
 
     public async Task<TodoListItem?> GetByIdAsync(long todoListId, long id)
@@ -38,8 +36,9 @@ public class TodoListItemService : ITodoListItemService
             return null;
         }
 
-        return await _context.TodoListItem
-            .FirstOrDefaultAsync(i => i.Id == id && i.TodoListId == todoListId);
+        return await _context.TodoListItem.FirstOrDefaultAsync(i =>
+            i.Id == id && i.TodoListId == todoListId
+        );
     }
 
     public async Task<TodoListItem?> CreateAsync(long todoListId, CreateTodoListItem dto)
@@ -55,12 +54,16 @@ public class TodoListItemService : ITodoListItemService
         {
             Description = dto.Description,
             TodoListId = todoListId,
-            IsCompleted = false
+            IsCompleted = false,
         };
 
         _context.TodoListItem.Add(item);
         await _context.SaveChangesAsync();
-        _logger.LogInformation("Created TodoListItem {ItemId} in TodoList {TodoListId}", item.Id, todoListId);
+        _logger.LogInformation(
+            "Created TodoListItem {ItemId} in TodoList {TodoListId}",
+            item.Id,
+            todoListId
+        );
         return item;
     }
 
@@ -73,19 +76,28 @@ public class TodoListItemService : ITodoListItemService
             return false;
         }
 
-        var item = await _context.TodoListItem
-            .FirstOrDefaultAsync(i => i.Id == id && i.TodoListId == todoListId);
+        var item = await _context.TodoListItem.FirstOrDefaultAsync(i =>
+            i.Id == id && i.TodoListId == todoListId
+        );
 
         if (item == null)
         {
-            _logger.LogWarning("UpdateAsync: TodoListItem {ItemId} not found in TodoList {TodoListId}", id, todoListId);
+            _logger.LogWarning(
+                "UpdateAsync: TodoListItem {ItemId} not found in TodoList {TodoListId}",
+                id,
+                todoListId
+            );
             return false;
         }
 
         item.Description = dto.Description;
         item.IsCompleted = dto.IsCompleted;
         await _context.SaveChangesAsync();
-        _logger.LogInformation("Updated TodoListItem {ItemId} in TodoList {TodoListId}", id, todoListId);
+        _logger.LogInformation(
+            "Updated TodoListItem {ItemId} in TodoList {TodoListId}",
+            id,
+            todoListId
+        );
         return true;
     }
 
@@ -98,18 +110,27 @@ public class TodoListItemService : ITodoListItemService
             return false;
         }
 
-        var item = await _context.TodoListItem
-            .FirstOrDefaultAsync(i => i.Id == id && i.TodoListId == todoListId);
+        var item = await _context.TodoListItem.FirstOrDefaultAsync(i =>
+            i.Id == id && i.TodoListId == todoListId
+        );
 
         if (item == null)
         {
-            _logger.LogWarning("DeleteAsync: TodoListItem {ItemId} not found in TodoList {TodoListId}", id, todoListId);
+            _logger.LogWarning(
+                "DeleteAsync: TodoListItem {ItemId} not found in TodoList {TodoListId}",
+                id,
+                todoListId
+            );
             return false;
         }
 
         _context.TodoListItem.Remove(item);
         await _context.SaveChangesAsync();
-        _logger.LogInformation("Deleted TodoListItem {ItemId} in TodoList {TodoListId}", id, todoListId);
+        _logger.LogInformation(
+            "Deleted TodoListItem {ItemId} in TodoList {TodoListId}",
+            id,
+            todoListId
+        );
         return true;
     }
 }
