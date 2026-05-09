@@ -178,4 +178,96 @@ public class TodoListSyncServiceTests
         // Mapping previo intacto + 2 nuevos.
         Assert.Equal(3, ctx.SyncMappings.Count());
     }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OneOfThreeFails_StatusPartialAndOthersMapped()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.TodoList.AddRange(
+            new TodoApi.Models.TodoList { Id = 1, Name = "L1" },
+            new TodoApi.Models.TodoList { Id = 2, Name = "L2" },
+            new TodoApi.Models.TodoList { Id = 3, Name = "L3" }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.Is<CreateExternalTodoListRequest>(r => r.SourceId == "2"),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ThrowsAsync(new ExternalApiException("boom", 503, "POST", "todolists", null));
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.Is<CreateExternalTodoListRequest>(r => r.SourceId != "2"),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                (CreateExternalTodoListRequest req, CancellationToken _) =>
+                    new ExternalTodoList(
+                        $"ext-{req.SourceId}",
+                        req.SourceId,
+                        req.Name,
+                        DateTime.UtcNow,
+                        DateTime.UtcNow,
+                        Array.Empty<ExternalTodoItem>()
+                    )
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(3, result.Total);
+        Assert.Equal(2, result.Pushed);
+        Assert.Equal(1, result.Failed);
+        Assert.Equal(SyncRunStatus.Partial, result.Status);
+
+        var mappings = ctx.SyncMappings.OrderBy(m => m.LocalId).ToList();
+        Assert.Equal(new[] { 1L, 3L }, mappings.Select(m => m.LocalId));
+
+        var run = Assert.Single(ctx.SyncRuns);
+        Assert.Equal(SyncRunStatus.Partial, run.Status);
+        Assert.Equal(2, run.ItemsProcessed);
+        Assert.Equal(1, run.ItemsFailed);
+        Assert.NotNull(run.FinishedAt);
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_AllFail_StatusFailed()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "L1" });
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ThrowsAsync(new ExternalApiException("nope", 500, "POST", "todolists", null));
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Failed, result.Status);
+        Assert.Empty(ctx.SyncMappings);
+        Assert.Single(ctx.SyncRuns);
+    }
 }
