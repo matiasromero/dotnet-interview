@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using TodoApi.Sync.External;
@@ -444,6 +445,217 @@ public class TodoListSyncServiceTests
                     It.IsAny<CancellationToken>()
                 ),
             Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_ResponseItemHasNonParseableSourceId_LogsWarningAndSkipsItemMapping()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var listUpdatedAt = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+        var item1UpdatedAt = new DateTime(2026, 5, 9, 10, 1, 0, DateTimeKind.Utc);
+        var item2UpdatedAt = new DateTime(2026, 5, 9, 10, 2, 0, DateTimeKind.Utc);
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "List with bad response",
+                UpdatedAt = listUpdatedAt,
+                Items = new List<TodoApi.Models.TodoListItem>
+                {
+                    new()
+                    {
+                        Id = 10,
+                        Description = "First",
+                        IsCompleted = false,
+                        TodoListId = 1,
+                        UpdatedAt = item1UpdatedAt,
+                    },
+                    new()
+                    {
+                        Id = 11,
+                        Description = "Second",
+                        IsCompleted = true,
+                        TodoListId = 1,
+                        UpdatedAt = item2UpdatedAt,
+                    },
+                },
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var ext1UpdatedAt = new DateTime(2026, 5, 9, 11, 0, 0, DateTimeKind.Utc);
+        var extBadUpdatedAt = new DateTime(2026, 5, 9, 11, 1, 0, DateTimeKind.Utc);
+        var listExtUpdatedAt = new DateTime(2026, 5, 9, 11, 2, 0, DateTimeKind.Utc);
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                new ExternalTodoList(
+                    Id: "ext-1",
+                    SourceId: "1",
+                    Name: "List with bad response",
+                    CreatedAt: listExtUpdatedAt,
+                    UpdatedAt: listExtUpdatedAt,
+                    Items: new[]
+                    {
+                        new ExternalTodoItem(
+                            Id: "ext-item-10",
+                            SourceId: "10",
+                            Description: "First",
+                            Completed: false,
+                            CreatedAt: ext1UpdatedAt,
+                            UpdatedAt: ext1UpdatedAt
+                        ),
+                        new ExternalTodoItem(
+                            Id: "ext-item-bad",
+                            SourceId: "not-a-number",
+                            Description: "Second",
+                            Completed: true,
+                            CreatedAt: extBadUpdatedAt,
+                            UpdatedAt: extBadUpdatedAt
+                        ),
+                    }
+                )
+            );
+
+        var loggerMock = new Mock<ILogger<TodoListSyncService>>();
+
+        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        var listMapping = Assert.Single(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList).ToList()
+        );
+        Assert.Equal(1L, listMapping.LocalId);
+        Assert.Equal("ext-1", listMapping.ExternalId);
+
+        // Solo el item parseable se mapea; el del SourceId malformado se saltea.
+        var itemMapping = Assert.Single(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem).ToList()
+        );
+        Assert.Equal(10L, itemMapping.LocalId);
+        Assert.Equal("ext-item-10", itemMapping.ExternalId);
+        Assert.Equal("ext-1", itemMapping.ParentExternalId);
+
+        loggerMock.Verify(
+            l =>
+                l.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+            Times.AtLeastOnce
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_ResponseItemSourceIdDoesNotMatchAnyLocalItem_LogsWarningAndSkipsItemMapping()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var listUpdatedAt = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
+        var itemUpdatedAt = new DateTime(2026, 5, 9, 10, 1, 0, DateTimeKind.Utc);
+        ctx.TodoList.Add(
+            new TodoApi.Models.TodoList
+            {
+                Id = 1,
+                Name = "List with mismatched response",
+                UpdatedAt = listUpdatedAt,
+                Items = new List<TodoApi.Models.TodoListItem>
+                {
+                    new()
+                    {
+                        Id = 10,
+                        Description = "Only local",
+                        IsCompleted = false,
+                        TodoListId = 1,
+                        UpdatedAt = itemUpdatedAt,
+                    },
+                },
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var extItemUpdatedAt = new DateTime(2026, 5, 9, 11, 0, 0, DateTimeKind.Utc);
+        var listExtUpdatedAt = new DateTime(2026, 5, 9, 11, 1, 0, DateTimeKind.Utc);
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                new ExternalTodoList(
+                    Id: "ext-1",
+                    SourceId: "1",
+                    Name: "List with mismatched response",
+                    CreatedAt: listExtUpdatedAt,
+                    UpdatedAt: listExtUpdatedAt,
+                    Items: new[]
+                    {
+                        new ExternalTodoItem(
+                            Id: "ext-item-orphan",
+                            SourceId: "999",
+                            Description: "Phantom",
+                            Completed: false,
+                            CreatedAt: extItemUpdatedAt,
+                            UpdatedAt: extItemUpdatedAt
+                        ),
+                    }
+                )
+            );
+
+        var loggerMock = new Mock<ILogger<TodoListSyncService>>();
+
+        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(1, result.Total);
+        Assert.Equal(1, result.Pushed);
+        Assert.Equal(0, result.Failed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        var listMapping = Assert.Single(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList).ToList()
+        );
+        Assert.Equal(1L, listMapping.LocalId);
+        Assert.Equal("ext-1", listMapping.ExternalId);
+
+        // El SourceId parsea pero no matchea ningún item local: 0 mappings de item.
+        Assert.Empty(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem).ToList()
+        );
+
+        loggerMock.Verify(
+            l =>
+                l.Log(
+                    LogLevel.Warning,
+                    It.IsAny<EventId>(),
+                    It.IsAny<It.IsAnyType>(),
+                    It.IsAny<Exception?>(),
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()
+                ),
+            Times.AtLeastOnce
         );
     }
 
