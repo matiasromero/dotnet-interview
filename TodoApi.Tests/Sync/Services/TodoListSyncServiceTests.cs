@@ -105,4 +105,77 @@ public class TodoListSyncServiceTests
             Times.Once
         );
     }
+
+    [Fact]
+    public async Task PushTodoListsAsync_WithExistingMapping_OnlyPushesUnmapped()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.TodoList.AddRange(
+            new TodoApi.Models.TodoList { Id = 1, Name = "Already synced" },
+            new TodoApi.Models.TodoList { Id = 2, Name = "New 2" },
+            new TodoApi.Models.TodoList { Id = 3, Name = "New 3" }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-prev",
+                LastSyncedAt = DateTime.UtcNow.AddHours(-1),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                (CreateExternalTodoListRequest req, CancellationToken _) =>
+                    new ExternalTodoList(
+                        Id: $"ext-{req.SourceId}",
+                        SourceId: req.SourceId,
+                        Name: req.Name,
+                        CreatedAt: DateTime.UtcNow,
+                        UpdatedAt: DateTime.UtcNow,
+                        Items: Array.Empty<ExternalTodoItem>()
+                    )
+            );
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(2, result.Total);
+        Assert.Equal(2, result.Pushed);
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+
+        client.Verify(
+            c =>
+                c.CreateTodoListAsync(
+                    It.Is<CreateExternalTodoListRequest>(r => r.SourceId == "1"),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Never
+        );
+        client.Verify(
+            c =>
+                c.CreateTodoListAsync(
+                    It.IsAny<CreateExternalTodoListRequest>(),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Exactly(2)
+        );
+
+        // Mapping previo intacto + 2 nuevos.
+        Assert.Equal(3, ctx.SyncMappings.Count());
+    }
 }
