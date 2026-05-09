@@ -44,7 +44,7 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         foreach (var item in unmappedWithMappedParent)
         {
             _logger.LogWarning(
-                "TodoListItem {ItemId} created in already-synced list cannot be pushed: external API does not expose POST /todoitems aislado",
+                "TodoListItem {ItemId} created in already-synced list cannot be pushed: external API does not expose a standalone POST /todoitems",
                 item.Id
             );
         }
