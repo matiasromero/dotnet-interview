@@ -398,7 +398,9 @@ public class TodoListSyncServiceTests
         var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
         client
             .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { ExternalListAt("ext-1", "1", "External renamed", externalNewer) });
+            .ReturnsAsync(
+                new[] { ExternalListAt("ext-1", "1", "External renamed", externalNewer) }
+            );
 
         var sut = new TodoListSyncService(
             ctx,
@@ -534,7 +536,9 @@ public class TodoListSyncServiceTests
         var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
         client
             .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new[] { ExternalListAt("ext-1", "1", "External edit", externalEvenNewer) });
+            .ReturnsAsync(
+                new[] { ExternalListAt("ext-1", "1", "External edit", externalEvenNewer) }
+            );
 
         var sut = new TodoListSyncService(
             ctx,
@@ -799,7 +803,9 @@ public class TodoListSyncServiceTests
                     It.IsAny<CancellationToken>()
                 )
             )
-            .ThrowsAsync(new ExternalApiException("nope", 503, "PATCH", "todolists/ext-fail", null));
+            .ThrowsAsync(
+                new ExternalApiException("nope", 503, "PATCH", "todolists/ext-fail", null)
+            );
 
         var sut = new TodoListSyncService(
             ctx,
