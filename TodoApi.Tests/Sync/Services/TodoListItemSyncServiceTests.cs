@@ -2181,4 +2181,349 @@ public class TodoListItemSyncServiceTests
         Assert.Single(ctx.TodoListItem);
         Assert.Equal(1, ctx.SyncMappings.Count(m => m.EntityType == SyncEntityType.TodoListItem));
     }
+
+    [Fact]
+    public async Task PushTodoListItemsAsync_OutboxCreateEvent_AlreadyMapped_SkipsAndMarksProcessed()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = DateTime.UtcNow;
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "Parent" });
+        ctx.TodoListItem.Add(
+            new TodoApi.Models.TodoListItem
+            {
+                Id = 50,
+                Description = "Embedded",
+                IsCompleted = false,
+                TodoListId = 1,
+                UpdatedAt = snapshot,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 50,
+                ExternalId = "ext-item-50",
+                ParentExternalId = "ext-list-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        ctx.OutboxEvents.Add(
+            new OutboxEvent
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                EntityId = 50,
+                Operation = OutboxOperation.Create,
+                OccurredAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+
+        var sut = new TodoListItemSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListItemSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListItemsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Failed);
+        var evt = Assert.Single(ctx.OutboxEvents);
+        Assert.NotNull(evt.ProcessedAt);
+        client.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PushTodoListItemsAsync_OutboxCreateEvent_UnmappedItem_LogsWarningAndMarksProcessed()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        // Parent list with mapping (limitation slice 3 applies — cannot POST item standalone).
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "Parent" });
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = 1,
+                ExternalId = "ext-list-1",
+                LastSyncedAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        ctx.TodoListItem.Add(
+            new TodoApi.Models.TodoListItem
+            {
+                Id = 60,
+                Description = "Late item",
+                IsCompleted = false,
+                TodoListId = 1,
+                UpdatedAt = DateTime.UtcNow,
+            }
+        );
+        ctx.OutboxEvents.Add(
+            new OutboxEvent
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                EntityId = 60,
+                Operation = OutboxOperation.Create,
+                OccurredAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+
+        var sut = new TodoListItemSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListItemSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListItemsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Failed);
+        var evt = Assert.Single(ctx.OutboxEvents);
+        Assert.NotNull(evt.ProcessedAt);
+        // No external POST/PATCH/DELETE happened (slice 3 limitation).
+        client.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PushTodoListItemsAsync_OutboxUpdateEvent_PatchesAndBumpsSnapshot()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        var snapshot = DateTime.UtcNow.AddMinutes(-10);
+        var newer = DateTime.UtcNow;
+        ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "Parent" });
+        ctx.TodoListItem.Add(
+            new TodoApi.Models.TodoListItem
+            {
+                Id = 70,
+                Description = "Renamed",
+                IsCompleted = true,
+                TodoListId = 1,
+                UpdatedAt = newer,
+            }
+        );
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 70,
+                ExternalId = "ext-item-70",
+                ParentExternalId = "ext-list-1",
+                LastSyncedAt = snapshot,
+                IdempotencyKey = Guid.NewGuid(),
+                LocalUpdatedAtAtSync = snapshot,
+                ExternalUpdatedAtAtSync = snapshot,
+            }
+        );
+        ctx.OutboxEvents.Add(
+            new OutboxEvent
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                EntityId = 70,
+                Operation = OutboxOperation.Update,
+                OccurredAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.UpdateTodoItemAsync(
+                    "ext-list-1",
+                    "ext-item-70",
+                    It.IsAny<UpdateExternalTodoItemRequest>(),
+                    It.IsAny<CancellationToken>()
+                )
+            )
+            .ReturnsAsync(
+                new ExternalTodoItem(
+                    Id: "ext-item-70",
+                    SourceId: "70",
+                    Description: "Renamed",
+                    Completed: true,
+                    CreatedAt: snapshot,
+                    UpdatedAt: newer
+                )
+            );
+
+        var sut = new TodoListItemSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListItemSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListItemsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Failed);
+        var evt = Assert.Single(ctx.OutboxEvents);
+        Assert.NotNull(evt.ProcessedAt);
+        var mapping = Assert.Single(
+            ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem)
+        );
+        Assert.Equal(newer, mapping.LocalUpdatedAtAtSync);
+        Assert.Equal(newer, mapping.ExternalUpdatedAtAtSync);
+        client.Verify(
+            c =>
+                c.UpdateTodoItemAsync(
+                    "ext-list-1",
+                    "ext-item-70",
+                    It.Is<UpdateExternalTodoItemRequest>(r =>
+                        r.Description == "Renamed" && r.Completed
+                    ),
+                    It.IsAny<CancellationToken>()
+                ),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListItemsAsync_OutboxUpdateEvent_NoMapping_SkipsAndMarksProcessed()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.OutboxEvents.Add(
+            new OutboxEvent
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                EntityId = 80,
+                Operation = OutboxOperation.Update,
+                OccurredAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+
+        var sut = new TodoListItemSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListItemSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListItemsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Failed);
+        var evt = Assert.Single(ctx.OutboxEvents);
+        Assert.NotNull(evt.ProcessedAt);
+        client.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PushTodoListItemsAsync_OutboxDeleteEvent_DeletesAndCleansMapping()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 90,
+                ExternalId = "ext-item-90",
+                ParentExternalId = "ext-list-1",
+                LastSyncedAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        ctx.OutboxEvents.Add(
+            new OutboxEvent
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                EntityId = 90,
+                Operation = OutboxOperation.Delete,
+                OccurredAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.DeleteTodoItemAsync("ext-list-1", "ext-item-90", It.IsAny<CancellationToken>())
+            )
+            .Returns(Task.CompletedTask);
+
+        var sut = new TodoListItemSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListItemSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListItemsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Failed);
+        var evt = Assert.Single(ctx.OutboxEvents);
+        Assert.NotNull(evt.ProcessedAt);
+        Assert.Empty(ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem));
+        client.Verify(
+            c => c.DeleteTodoItemAsync("ext-list-1", "ext-item-90", It.IsAny<CancellationToken>()),
+            Times.Once
+        );
+    }
+
+    [Fact]
+    public async Task PushTodoListItemsAsync_OutboxDeleteEvent_404Grace_StillCleansMapping()
+    {
+        await using var ctx = new TodoContext(NewDbOptions());
+        ctx.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                LocalId = 91,
+                ExternalId = "ext-item-91",
+                ParentExternalId = "ext-list-1",
+                LastSyncedAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        ctx.OutboxEvents.Add(
+            new OutboxEvent
+            {
+                EntityType = SyncEntityType.TodoListItem,
+                EntityId = 91,
+                Operation = OutboxOperation.Delete,
+                OccurredAt = DateTime.UtcNow,
+                IdempotencyKey = Guid.NewGuid(),
+            }
+        );
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+        client
+            .Setup(c =>
+                c.DeleteTodoItemAsync("ext-list-1", "ext-item-91", It.IsAny<CancellationToken>())
+            )
+            .ThrowsAsync(
+                new ExternalApiException(
+                    "not found",
+                    404,
+                    "DELETE",
+                    "/todolists/ext-list-1/todoitems/ext-item-91",
+                    null
+                )
+            );
+
+        var sut = new TodoListItemSyncService(
+            ctx,
+            client.Object,
+            NullLogger<TodoListItemSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListItemsAsync(CancellationToken.None);
+
+        Assert.Equal(0, result.Failed);
+        var evt = Assert.Single(ctx.OutboxEvents);
+        Assert.NotNull(evt.ProcessedAt);
+        Assert.Empty(ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem));
+    }
 }

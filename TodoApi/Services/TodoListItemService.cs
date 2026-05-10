@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
 using TodoApi.Models;
+using TodoApi.Sync.Models;
 
 namespace TodoApi.Services;
 
@@ -14,6 +15,16 @@ public class TodoListItemService : ITodoListItemService
         _context = context;
         _logger = logger;
     }
+
+    private static OutboxEvent BuildOutboxEvent(long entityId, OutboxOperation operation) =>
+        new()
+        {
+            EntityType = SyncEntityType.TodoListItem,
+            EntityId = entityId,
+            Operation = operation,
+            OccurredAt = DateTime.UtcNow,
+            IdempotencyKey = Guid.NewGuid(),
+        };
 
     public async Task<IEnumerable<TodoListItem>?> GetAllAsync(long todoListId)
     {
@@ -60,6 +71,10 @@ public class TodoListItemService : ITodoListItemService
 
         _context.TodoListItem.Add(item);
         await _context.SaveChangesAsync();
+
+        _context.OutboxEvents.Add(BuildOutboxEvent(item.Id, OutboxOperation.Create));
+        await _context.SaveChangesAsync();
+
         _logger.LogInformation(
             "Created TodoListItem {ItemId} in TodoList {TodoListId}",
             item.Id,
@@ -94,6 +109,7 @@ public class TodoListItemService : ITodoListItemService
         item.Description = dto.Description;
         item.IsCompleted = dto.IsCompleted;
         item.UpdatedAt = DateTime.UtcNow;
+        _context.OutboxEvents.Add(BuildOutboxEvent(id, OutboxOperation.Update));
         await _context.SaveChangesAsync();
         _logger.LogInformation(
             "Updated TodoListItem {ItemId} in TodoList {TodoListId}",
@@ -127,6 +143,7 @@ public class TodoListItemService : ITodoListItemService
         }
 
         _context.TodoListItem.Remove(item);
+        _context.OutboxEvents.Add(BuildOutboxEvent(id, OutboxOperation.Delete));
         await _context.SaveChangesAsync();
         _logger.LogInformation(
             "Deleted TodoListItem {ItemId} in TodoList {TodoListId}",

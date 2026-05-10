@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TodoApi.Sync.Data;
 using TodoApi.Sync.External;
@@ -23,6 +24,8 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         _logger = logger;
     }
 
+    private const int OutboxBatchSize = 1000;
+
     public async Task<SyncRunResult> PushTodoListItemsAsync(CancellationToken cancellationToken)
     {
         var run = new SyncRun
@@ -34,6 +37,42 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         };
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
+
+        int processed = 0;
+        int failed = 0;
+        int total = 0;
+
+        // Phase A: drain outbox events for TodoListItem.
+        var events = await _db.GetPendingOutboxEventsAsync(
+            SyncEntityType.TodoListItem,
+            OutboxBatchSize,
+            cancellationToken
+        );
+        foreach (var evt in events)
+        {
+            total++;
+            try
+            {
+                await DispatchTodoListItemOutboxEventAsync(evt, cancellationToken);
+                await _db.MarkOutboxEventProcessedAsync(evt.Id, cancellationToken);
+                processed++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to dispatch outbox event {EventId} ({Operation} TodoListItem {LocalId})",
+                    evt.Id,
+                    evt.Operation,
+                    evt.EntityId
+                );
+                failed++;
+            }
+        }
+
+        // Phase B: legacy fallback. Items unmapped under mapped parents (slice 3 limitation),
+        // mapped items with local changes (PATCH), and orphan mappings (DELETE). Coexists
+        // with outbox during the transitional period.
 
         // 1) Items created locally under an already-mapped parent: cannot be pushed because
         // the external API does not expose a standalone POST /todoitems. Warn-and-skip.
@@ -51,8 +90,6 @@ public class TodoListItemSyncService : ITodoListItemSyncService
 
         // 2) Items with an existing mapping: PATCH if local changed since the last sync.
         var mapped = await _db.GetMappedTodoListItemsAsync(cancellationToken);
-        int processed = 0;
-        int failed = 0;
 
         foreach (var m in mapped)
         {
@@ -150,8 +187,8 @@ public class TodoListItemSyncService : ITodoListItemSyncService
             }
         }
 
-        // 4) Close the SyncRun. Total = mapped + orphans (warnings are not counted).
-        var total = mapped.Count + orphans.Count;
+        // 4) Close the SyncRun. Total = events + mapped + orphans (warnings are not counted).
+        total += mapped.Count + orphans.Count;
         run.FinishedAt = DateTime.UtcNow;
         run.ItemsProcessed = processed;
         run.ItemsFailed = failed;
@@ -162,6 +199,146 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         await _db.SaveChangesAsync(cancellationToken);
 
         return new SyncRunResult(total, processed, failed, run.Status);
+    }
+
+    private async Task DispatchTodoListItemOutboxEventAsync(
+        OutboxEventRecord evt,
+        CancellationToken ct
+    )
+    {
+        switch (evt.Operation)
+        {
+            case OutboxOperation.Create:
+                await DispatchOutboxItemCreateAsync(evt, ct);
+                break;
+            case OutboxOperation.Update:
+                await DispatchOutboxItemUpdateAsync(evt, ct);
+                break;
+            case OutboxOperation.Delete:
+                await DispatchOutboxItemDeleteAsync(evt, ct);
+                break;
+        }
+    }
+
+    private async Task DispatchOutboxItemCreateAsync(OutboxEventRecord evt, CancellationToken ct)
+    {
+        // Already mapped? embedded by parent's POST. Skip.
+        var existing = await _db
+            .SyncMappings.Where(m =>
+                m.EntityType == SyncEntityType.TodoListItem && m.LocalId == evt.EntityId
+            )
+            .FirstOrDefaultAsync(ct);
+        if (existing is not null)
+        {
+            _logger.LogDebug(
+                "TodoListItem {LocalId} already mapped; skipping outbox create event {EventId}",
+                evt.EntityId,
+                evt.Id
+            );
+            return;
+        }
+
+        // Slice 3 limitation: external contract does not expose a standalone POST /todoitems,
+        // so a Create event for an item whose parent is already mapped cannot propagate. The
+        // item will only sync if the parent re-creates it embedded, which the contract does
+        // not currently permit. Log Warning + mark processed to drain the queue.
+        _logger.LogWarning(
+            "Outbox Create event {EventId} for TodoListItem {LocalId} cannot be dispatched: external API does not expose standalone POST /todoitems",
+            evt.Id,
+            evt.EntityId
+        );
+    }
+
+    private async Task DispatchOutboxItemUpdateAsync(OutboxEventRecord evt, CancellationToken ct)
+    {
+        var mapping = await _db
+            .SyncMappings.Where(m =>
+                m.EntityType == SyncEntityType.TodoListItem && m.LocalId == evt.EntityId
+            )
+            .FirstOrDefaultAsync(ct);
+        if (mapping is null)
+        {
+            _logger.LogWarning(
+                "Outbox Update event {EventId} for TodoListItem {LocalId} skipped: item is not mapped (never synced)",
+                evt.Id,
+                evt.EntityId
+            );
+            return;
+        }
+
+        var local = await _db.GetLocalTodoListItemByIdAsync(evt.EntityId, ct);
+        if (local is null)
+        {
+            _logger.LogInformation(
+                "Outbox Update event {EventId}: local TodoListItem {LocalId} disappeared, skipping (delete event will handle)",
+                evt.Id,
+                evt.EntityId
+            );
+            return;
+        }
+
+        var response = await _client.UpdateTodoItemAsync(
+            mapping.ParentExternalId!,
+            mapping.ExternalId,
+            new UpdateExternalTodoItemRequest(local.Description, local.IsCompleted),
+            ct
+        );
+
+        var trackedMapping =
+            await _db.SyncMappings.FindAsync(new object?[] { mapping.Id }, ct)
+            ?? throw new InvalidOperationException(
+                $"SyncMapping {mapping.Id} disappeared mid-push"
+            );
+        trackedMapping.LocalUpdatedAtAtSync = local.UpdatedAt;
+        trackedMapping.ExternalUpdatedAtAtSync = response.UpdatedAt;
+        trackedMapping.LastSyncedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Pushed TodoListItem {LocalId} update to external {ExternalItemId} via outbox event {EventId}",
+            local.Id,
+            mapping.ExternalId,
+            evt.Id
+        );
+    }
+
+    private async Task DispatchOutboxItemDeleteAsync(OutboxEventRecord evt, CancellationToken ct)
+    {
+        var mapping = await _db
+            .SyncMappings.Where(m =>
+                m.EntityType == SyncEntityType.TodoListItem && m.LocalId == evt.EntityId
+            )
+            .FirstOrDefaultAsync(ct);
+        if (mapping is null)
+        {
+            _logger.LogInformation(
+                "TodoListItem {LocalId} has no mapping; outbox delete event {EventId} marked processed without external call",
+                evt.EntityId,
+                evt.Id
+            );
+            return;
+        }
+
+        try
+        {
+            await _client.DeleteTodoItemAsync(mapping.ParentExternalId!, mapping.ExternalId, ct);
+            await RemoveMappingAsync(mapping.Id, ct);
+            _logger.LogInformation(
+                "Deleted external TodoListItem {ExternalItemId} (parent {ParentExternalId}) via outbox event {EventId}",
+                mapping.ExternalId,
+                mapping.ParentExternalId,
+                evt.Id
+            );
+        }
+        catch (ExternalApiException ex) when (ex.StatusCode == 404)
+        {
+            _logger.LogInformation(
+                "External TodoListItem {ExternalItemId} already deleted; cleaning mapping (outbox event {EventId})",
+                mapping.ExternalId,
+                evt.Id
+            );
+            await RemoveMappingAsync(mapping.Id, ct);
+        }
     }
 
     public async Task<SyncRunResult> PullTodoListItemsAsync(

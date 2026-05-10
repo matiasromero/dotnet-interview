@@ -148,4 +148,41 @@ public interface ISyncDbContext
         ApplyExternalDeleteItemPlan plan,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// Returns the local TodoList with the given Id (with its current items) regardless of
+    /// whether it has a SyncMapping. Used by the outbox-driven push when re-reading the
+    /// local state to issue a POST for a Create event.
+    /// </summary>
+    Task<LocalTodoListRecord?> GetLocalTodoListByIdAsync(
+        long localId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Returns the local TodoListItem with the given Id regardless of whether it has a
+    /// SyncMapping. Used by the outbox-driven push when re-reading the local state to issue
+    /// a PATCH for an Update event.
+    /// </summary>
+    Task<LocalTodoListItemRecord?> GetLocalTodoListItemByIdAsync(
+        long localId,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Returns pending outbox events (ProcessedAt IS NULL) for the given entity type, oldest
+    /// first, capped at <paramref name="take"/>. The push pipeline drains this FIFO each tick
+    /// to propagate local CRUD changes to the external API.
+    /// </summary>
+    Task<List<OutboxEventRecord>> GetPendingOutboxEventsAsync(
+        SyncEntityType entityType,
+        int take,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Marks the outbox event with the given Id as processed (sets ProcessedAt = UtcNow).
+    /// Own SaveChanges. Idempotent: marking an already-processed event is a no-op.
+    /// </summary>
+    Task MarkOutboxEventProcessedAsync(long eventId, CancellationToken cancellationToken = default);
 }

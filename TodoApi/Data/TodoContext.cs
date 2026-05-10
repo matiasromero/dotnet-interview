@@ -12,6 +12,7 @@ public class TodoContext : DbContext, ISyncDbContext
     public DbSet<TodoListItem> TodoListItem { get; set; } = default!;
     public DbSet<SyncMapping> SyncMappings { get; set; } = null!;
     public DbSet<SyncRun> SyncRuns { get; set; } = null!;
+    public DbSet<OutboxEvent> OutboxEvents { get; set; } = null!;
 
     public async Task<List<LocalTodoListRecord>> GetUnmappedTodoListsAsync(
         CancellationToken cancellationToken = default
@@ -409,6 +410,75 @@ public class TodoContext : DbContext, ISyncDbContext
         await SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<LocalTodoListRecord?> GetLocalTodoListByIdAsync(
+        long localId,
+        CancellationToken cancellationToken = default
+    ) =>
+        await TodoList
+            .Where(l => l.Id == localId)
+            .Select(l => new LocalTodoListRecord(
+                l.Id,
+                l.Name,
+                l.UpdatedAt,
+                l.Items.Select(i => new LocalTodoListItemRecord(
+                        i.Id,
+                        i.Description,
+                        i.IsCompleted,
+                        i.UpdatedAt
+                    ))
+                    .ToList()
+            ))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<LocalTodoListItemRecord?> GetLocalTodoListItemByIdAsync(
+        long localId,
+        CancellationToken cancellationToken = default
+    ) =>
+        await TodoListItem
+            .Where(i => i.Id == localId)
+            .Select(i => new LocalTodoListItemRecord(
+                i.Id,
+                i.Description,
+                i.IsCompleted,
+                i.UpdatedAt
+            ))
+            .SingleOrDefaultAsync(cancellationToken);
+
+    public async Task<List<OutboxEventRecord>> GetPendingOutboxEventsAsync(
+        SyncEntityType entityType,
+        int take,
+        CancellationToken cancellationToken = default
+    ) =>
+        await OutboxEvents
+            .Where(e => e.EntityType == entityType && e.ProcessedAt == null)
+            .OrderBy(e => e.OccurredAt)
+            .ThenBy(e => e.Id)
+            .Take(take)
+            .Select(e => new OutboxEventRecord(
+                e.Id,
+                e.EntityType,
+                e.EntityId,
+                e.Operation,
+                e.Payload,
+                e.OccurredAt,
+                e.IdempotencyKey
+            ))
+            .ToListAsync(cancellationToken);
+
+    public async Task MarkOutboxEventProcessedAsync(
+        long eventId,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var evt = await OutboxEvents.FindAsync(new object?[] { eventId }, cancellationToken);
+        if (evt is null || evt.ProcessedAt is not null)
+        {
+            return;
+        }
+        evt.ProcessedAt = DateTime.UtcNow;
+        await SaveChangesAsync(cancellationToken);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -424,6 +494,9 @@ public class TodoContext : DbContext, ISyncDbContext
             .Property(i => i.UpdatedAt)
             .HasDefaultValueSql("GETUTCDATE()");
 
+        modelBuilder.Entity<TodoList>().HasIndex(l => l.UpdatedAt);
+        modelBuilder.Entity<TodoListItem>().HasIndex(i => i.UpdatedAt);
+
         modelBuilder.Entity<SyncMapping>(b =>
         {
             b.HasIndex(m => new { m.EntityType, m.LocalId }).IsUnique();
@@ -437,6 +510,14 @@ public class TodoContext : DbContext, ISyncDbContext
         {
             b.HasIndex(r => new { r.EntityType, r.StartedAt });
             b.Property(r => r.Error).HasColumnType("nvarchar(max)");
+        });
+
+        modelBuilder.Entity<OutboxEvent>(b =>
+        {
+            b.HasIndex(e => e.IdempotencyKey).IsUnique();
+            b.HasIndex(e => new { e.EntityType, e.EntityId });
+            b.HasIndex(e => e.OccurredAt).HasFilter("[ProcessedAt] IS NULL");
+            b.Property(e => e.Payload).HasColumnType("nvarchar(max)");
         });
     }
 }

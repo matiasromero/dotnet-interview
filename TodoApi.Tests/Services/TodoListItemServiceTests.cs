@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using TodoApi.Dtos;
 using TodoApi.Models;
 using TodoApi.Services;
+using TodoApi.Sync.Models;
 
 namespace TodoApi.Tests.Services;
 
@@ -323,6 +324,121 @@ public class TodoListItemServiceTests
 
             Assert.False(result);
             Assert.Equal(3, context.TodoListItem.Count());
+        }
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCalled_AlsoWritesOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+            var dto = new CreateTodoListItem { Description = "Outbox Item" };
+
+            var result = await service.CreateAsync(1, dto);
+
+            Assert.NotNull(result);
+            var events = await context.OutboxEvents.ToListAsync();
+            var evt = Assert.Single(events);
+            Assert.Equal(SyncEntityType.TodoListItem, evt.EntityType);
+            Assert.Equal(result.Id, evt.EntityId);
+            Assert.Equal(OutboxOperation.Create, evt.Operation);
+            Assert.Null(evt.ProcessedAt);
+            Assert.NotEqual(Guid.Empty, evt.IdempotencyKey);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenItemExists_AlsoWritesOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+            var dto = new UpdateTodoListItem { Description = "Renamed", IsCompleted = true };
+
+            var ok = await service.UpdateAsync(1, 1, dto);
+
+            Assert.True(ok);
+            var events = await context.OutboxEvents.ToListAsync();
+            var evt = Assert.Single(events);
+            Assert.Equal(SyncEntityType.TodoListItem, evt.EntityType);
+            Assert.Equal(1L, evt.EntityId);
+            Assert.Equal(OutboxOperation.Update, evt.Operation);
+            Assert.Null(evt.ProcessedAt);
+            Assert.NotEqual(Guid.Empty, evt.IdempotencyKey);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenItemExists_AlsoWritesOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+
+            var ok = await service.DeleteAsync(1, 2);
+
+            Assert.True(ok);
+            var events = await context.OutboxEvents.ToListAsync();
+            var evt = Assert.Single(events);
+            Assert.Equal(SyncEntityType.TodoListItem, evt.EntityType);
+            Assert.Equal(2L, evt.EntityId);
+            Assert.Equal(OutboxOperation.Delete, evt.Operation);
+            Assert.Null(evt.ProcessedAt);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenItemNotFound_DoesNotWriteOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+            var dto = new UpdateTodoListItem { Description = "X", IsCompleted = false };
+
+            var ok = await service.UpdateAsync(1, 999, dto);
+
+            Assert.False(ok);
+            Assert.Empty(await context.OutboxEvents.ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenParentNotFound_DoesNotWriteOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListItemService(
+                context,
+                NullLogger<TodoListItemService>.Instance
+            );
+
+            var ok = await service.DeleteAsync(99, 1);
+
+            Assert.False(ok);
+            Assert.Empty(await context.OutboxEvents.ToListAsync());
         }
     }
 }

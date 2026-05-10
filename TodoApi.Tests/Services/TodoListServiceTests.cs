@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using TodoApi.Dtos;
 using TodoApi.Models;
 using TodoApi.Services;
+using TodoApi.Sync.Models;
 
 namespace TodoApi.Tests.Services;
 
@@ -207,6 +208,107 @@ public class TodoListServiceTests
             Assert.True(result);
             var updated = await context.TodoList.FindAsync(1L);
             Assert.True(updated.UpdatedAt > oldTimestamp);
+        }
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenCalled_AlsoWritesOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+            var dto = new CreateTodoList { Name = "Outbox List" };
+            var before = DateTime.UtcNow;
+
+            var result = await service.CreateAsync(dto);
+
+            var after = DateTime.UtcNow;
+            var events = await context.OutboxEvents.ToListAsync();
+            var evt = Assert.Single(events);
+            Assert.Equal(SyncEntityType.TodoList, evt.EntityType);
+            Assert.Equal(result.Id, evt.EntityId);
+            Assert.Equal(OutboxOperation.Create, evt.Operation);
+            Assert.Null(evt.ProcessedAt);
+            Assert.NotEqual(Guid.Empty, evt.IdempotencyKey);
+            Assert.InRange(evt.OccurredAt, before.AddSeconds(-1), after.AddSeconds(1));
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenIdExists_AlsoWritesOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+            var dto = new UpdateTodoList { Name = "Renamed" };
+
+            var ok = await service.UpdateAsync(1, dto);
+
+            Assert.True(ok);
+            var events = await context.OutboxEvents.ToListAsync();
+            var evt = Assert.Single(events);
+            Assert.Equal(SyncEntityType.TodoList, evt.EntityType);
+            Assert.Equal(1L, evt.EntityId);
+            Assert.Equal(OutboxOperation.Update, evt.Operation);
+            Assert.Null(evt.ProcessedAt);
+            Assert.NotEqual(Guid.Empty, evt.IdempotencyKey);
+        }
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WhenIdDoesntExist_DoesNotWriteOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+            var dto = new UpdateTodoList { Name = "Renamed" };
+
+            var ok = await service.UpdateAsync(999, dto);
+
+            Assert.False(ok);
+            Assert.Empty(await context.OutboxEvents.ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenIdExists_AlsoWritesOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+
+            var ok = await service.DeleteAsync(2);
+
+            Assert.True(ok);
+            var events = await context.OutboxEvents.ToListAsync();
+            var evt = Assert.Single(events);
+            Assert.Equal(SyncEntityType.TodoList, evt.EntityType);
+            Assert.Equal(2L, evt.EntityId);
+            Assert.Equal(OutboxOperation.Delete, evt.Operation);
+            Assert.Null(evt.ProcessedAt);
+            Assert.NotEqual(Guid.Empty, evt.IdempotencyKey);
+        }
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WhenIdDoesntExist_DoesNotWriteOutboxEvent()
+    {
+        using (var context = new TodoContext(DatabaseContextOptions()))
+        {
+            PopulateDatabaseContext(context);
+
+            var service = new TodoListService(context, NullLogger<TodoListService>.Instance);
+
+            var ok = await service.DeleteAsync(999);
+
+            Assert.False(ok);
+            Assert.Empty(await context.OutboxEvents.ToListAsync());
         }
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TodoApi.Sync.Data;
 using TodoApi.Sync.External;
@@ -23,6 +24,8 @@ public class TodoListSyncService : ITodoListSyncService
         _logger = logger;
     }
 
+    private const int OutboxBatchSize = 1000;
+
     public async Task<SyncRunResult> PushTodoListsAsync(CancellationToken cancellationToken)
     {
         var run = new SyncRun
@@ -35,95 +38,53 @@ public class TodoListSyncService : ITodoListSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
+        int processed = 0;
+        int failed = 0;
+        int total = 0;
+
+        // Phase A: drain outbox events for TodoList (Create / Delete; Update is no-op slice 6).
+        var events = await _db.GetPendingOutboxEventsAsync(
+            SyncEntityType.TodoList,
+            OutboxBatchSize,
+            cancellationToken
+        );
+        foreach (var evt in events)
+        {
+            total++;
+            try
+            {
+                await DispatchTodoListOutboxEventAsync(evt, cancellationToken);
+                await _db.MarkOutboxEventProcessedAsync(evt.Id, cancellationToken);
+                processed++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to dispatch outbox event {EventId} ({Operation} TodoList {LocalId})",
+                    evt.Id,
+                    evt.Operation,
+                    evt.EntityId
+                );
+                failed++;
+            }
+        }
+
+        // Phase B: legacy fallback. Covers TodoLists pre-slice-6 (no outbox event recorded
+        // when they were created) and orphan mappings whose local row was deleted outside
+        // the service flow. Both paths are net no-ops once outbox is the sole source of
+        // change events; they remain as a transitional safety net.
         var candidates = await _db.GetUnmappedTodoListsAsync(cancellationToken);
         var orphans = await _db.GetOrphanedListMappingsAsync(cancellationToken);
-
-        int pushed = 0;
-        int failed = 0;
+        total += candidates.Count + orphans.Count;
 
         foreach (var local in candidates)
         {
             var idempotencyKey = Guid.NewGuid();
             try
             {
-                var external = await _client.CreateTodoListAsync(
-                    new CreateExternalTodoListRequest(
-                        SourceId: local.Id.ToString(),
-                        Name: local.Name,
-                        Items: local
-                            .Items.Select(i => new CreateExternalTodoItemRequest(
-                                i.Id.ToString(),
-                                i.Description,
-                                i.IsCompleted
-                            ))
-                            .ToList()
-                    ),
-                    idempotencyKey,
-                    cancellationToken
-                );
-
-                _db.SyncMappings.Add(
-                    new SyncMapping
-                    {
-                        EntityType = SyncEntityType.TodoList,
-                        LocalId = local.Id,
-                        ExternalId = external.Id,
-                        LastSyncedAt = DateTime.UtcNow,
-                        IdempotencyKey = idempotencyKey,
-                        LocalUpdatedAtAtSync = local.UpdatedAt,
-                        ExternalUpdatedAtAtSync = external.UpdatedAt,
-                    }
-                );
-                await _db.SaveChangesAsync(cancellationToken);
-
-                if (external.Items.Count > 0)
-                {
-                    var embeddedMappings = new List<EmbeddedItemMapping>();
-                    foreach (var ei in external.Items)
-                    {
-                        if (!long.TryParse(ei.SourceId, out var localItemId))
-                        {
-                            _logger.LogWarning(
-                                "External item {ExtId} returned with non-parseable source_id; skipping mapping",
-                                ei.Id
-                            );
-                            continue;
-                        }
-                        var localItem = local.Items.SingleOrDefault(li => li.Id == localItemId);
-                        if (localItem is null)
-                        {
-                            _logger.LogWarning(
-                                "External item {ExtId} source_id {SourceId} does not match any pushed local item",
-                                ei.Id,
-                                ei.SourceId
-                            );
-                            continue;
-                        }
-                        embeddedMappings.Add(
-                            new EmbeddedItemMapping(
-                                localItemId,
-                                ei.Id,
-                                localItem.UpdatedAt,
-                                ei.UpdatedAt
-                            )
-                        );
-                    }
-                    if (embeddedMappings.Count > 0)
-                    {
-                        await _db.PersistEmbeddedItemMappingsAsync(
-                            new PersistEmbeddedItemMappingsPlan(external.Id, embeddedMappings),
-                            cancellationToken
-                        );
-                    }
-                }
-
-                _logger.LogInformation(
-                    "Pushed TodoList {LocalId} to external as {ExternalId} with IdempotencyKey {IdempotencyKey}",
-                    local.Id,
-                    external.Id,
-                    idempotencyKey
-                );
-                pushed++;
+                await PushNewListAsync(local, idempotencyKey, cancellationToken);
+                processed++;
             }
             catch (Exception ex)
             {
@@ -137,10 +98,6 @@ public class TodoListSyncService : ITodoListSyncService
             }
         }
 
-        // 2nd pass: mappings whose local TodoList has been hard-deleted. DELETE externally
-        // (which cascades child items per the API contract) and clean up the mapping row.
-        // Child item mappings of this list remain — they'll be cleaned by PushTodoListItemsAsync
-        // via the existing 404-grace path (since their external counterparts are already gone).
         foreach (var orphan in orphans)
         {
             try
@@ -152,7 +109,7 @@ public class TodoListSyncService : ITodoListSyncService
                     orphan.ExternalId,
                     orphan.MappingId
                 );
-                pushed++;
+                processed++;
             }
             catch (ExternalApiException ex) when (ex.StatusCode == 404)
             {
@@ -162,7 +119,7 @@ public class TodoListSyncService : ITodoListSyncService
                     orphan.MappingId
                 );
                 await RemoveMappingAsync(orphan.MappingId, cancellationToken);
-                pushed++;
+                processed++;
             }
             catch (Exception ex)
             {
@@ -176,17 +133,16 @@ public class TodoListSyncService : ITodoListSyncService
             }
         }
 
-        var total = candidates.Count + orphans.Count;
         run.FinishedAt = DateTime.UtcNow;
-        run.ItemsProcessed = pushed;
+        run.ItemsProcessed = processed;
         run.ItemsFailed = failed;
         run.Status =
             failed == 0
                 ? SyncRunStatus.Succeeded
-                : (pushed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
+                : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return new SyncRunResult(total, pushed, failed, run.Status);
+        return new SyncRunResult(total, processed, failed, run.Status);
     }
 
     public async Task<(
@@ -510,5 +466,178 @@ public class TodoListSyncService : ITodoListSyncService
         }
         _db.SyncMappings.Remove(trackedMapping);
         await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task DispatchTodoListOutboxEventAsync(OutboxEventRecord evt, CancellationToken ct)
+    {
+        switch (evt.Operation)
+        {
+            case OutboxOperation.Create:
+                await DispatchOutboxCreateAsync(evt, ct);
+                break;
+            case OutboxOperation.Update:
+                // Slice 6: push-side PATCH from outbox is deferred to slice 7 (concurrency
+                // bounded). Pull-side LWW already handles "local newer than external" via
+                // PatchExternalAsync, so events are marked processed without action here.
+                _logger.LogDebug(
+                    "Outbox Update event {EventId} for TodoList {LocalId} marked processed (push-side update is slice 7)",
+                    evt.Id,
+                    evt.EntityId
+                );
+                break;
+            case OutboxOperation.Delete:
+                await DispatchOutboxDeleteAsync(evt, ct);
+                break;
+        }
+    }
+
+    private async Task DispatchOutboxCreateAsync(OutboxEventRecord evt, CancellationToken ct)
+    {
+        // Idempotency: if a mapping already exists (e.g. pull adopted via source_id), skip POST.
+        var existing = await _db
+            .SyncMappings.Where(m =>
+                m.EntityType == SyncEntityType.TodoList && m.LocalId == evt.EntityId
+            )
+            .FirstOrDefaultAsync(ct);
+        if (existing is not null)
+        {
+            _logger.LogDebug(
+                "TodoList {LocalId} already mapped; skipping outbox create event {EventId}",
+                evt.EntityId,
+                evt.Id
+            );
+            return;
+        }
+
+        var local = await _db.GetLocalTodoListByIdAsync(evt.EntityId, ct);
+        if (local is null)
+        {
+            _logger.LogInformation(
+                "TodoList {LocalId} no longer exists locally; skipping outbox create event {EventId}",
+                evt.EntityId,
+                evt.Id
+            );
+            return;
+        }
+
+        await PushNewListAsync(local, evt.IdempotencyKey, ct);
+    }
+
+    private async Task DispatchOutboxDeleteAsync(OutboxEventRecord evt, CancellationToken ct)
+    {
+        var mapping = await _db
+            .SyncMappings.Where(m =>
+                m.EntityType == SyncEntityType.TodoList && m.LocalId == evt.EntityId
+            )
+            .FirstOrDefaultAsync(ct);
+        if (mapping is null)
+        {
+            _logger.LogInformation(
+                "TodoList {LocalId} has no mapping; outbox delete event {EventId} marked processed without external call",
+                evt.EntityId,
+                evt.Id
+            );
+            return;
+        }
+
+        try
+        {
+            await _client.DeleteTodoListAsync(mapping.ExternalId, ct);
+            await RemoveMappingAsync(mapping.Id, ct);
+            _logger.LogInformation(
+                "Deleted external TodoList {ExternalId} via outbox event {EventId}",
+                mapping.ExternalId,
+                evt.Id
+            );
+        }
+        catch (ExternalApiException ex) when (ex.StatusCode == 404)
+        {
+            _logger.LogInformation(
+                "External TodoList {ExternalId} already deleted; cleaning mapping (outbox event {EventId})",
+                mapping.ExternalId,
+                evt.Id
+            );
+            await RemoveMappingAsync(mapping.Id, ct);
+        }
+    }
+
+    private async Task PushNewListAsync(
+        LocalTodoListRecord local,
+        Guid idempotencyKey,
+        CancellationToken ct
+    )
+    {
+        var external = await _client.CreateTodoListAsync(
+            new CreateExternalTodoListRequest(
+                SourceId: local.Id.ToString(),
+                Name: local.Name,
+                Items: local
+                    .Items.Select(i => new CreateExternalTodoItemRequest(
+                        i.Id.ToString(),
+                        i.Description,
+                        i.IsCompleted
+                    ))
+                    .ToList()
+            ),
+            idempotencyKey,
+            ct
+        );
+
+        _db.SyncMappings.Add(
+            new SyncMapping
+            {
+                EntityType = SyncEntityType.TodoList,
+                LocalId = local.Id,
+                ExternalId = external.Id,
+                LastSyncedAt = DateTime.UtcNow,
+                IdempotencyKey = idempotencyKey,
+                LocalUpdatedAtAtSync = local.UpdatedAt,
+                ExternalUpdatedAtAtSync = external.UpdatedAt,
+            }
+        );
+        await _db.SaveChangesAsync(ct);
+
+        if (external.Items.Count > 0)
+        {
+            var embeddedMappings = new List<EmbeddedItemMapping>();
+            foreach (var ei in external.Items)
+            {
+                if (!long.TryParse(ei.SourceId, out var localItemId))
+                {
+                    _logger.LogWarning(
+                        "External item {ExtId} returned with non-parseable source_id; skipping mapping",
+                        ei.Id
+                    );
+                    continue;
+                }
+                var localItem = local.Items.SingleOrDefault(li => li.Id == localItemId);
+                if (localItem is null)
+                {
+                    _logger.LogWarning(
+                        "External item {ExtId} source_id {SourceId} does not match any pushed local item",
+                        ei.Id,
+                        ei.SourceId
+                    );
+                    continue;
+                }
+                embeddedMappings.Add(
+                    new EmbeddedItemMapping(localItemId, ei.Id, localItem.UpdatedAt, ei.UpdatedAt)
+                );
+            }
+            if (embeddedMappings.Count > 0)
+            {
+                await _db.PersistEmbeddedItemMappingsAsync(
+                    new PersistEmbeddedItemMappingsPlan(external.Id, embeddedMappings),
+                    ct
+                );
+            }
+        }
+
+        _logger.LogInformation(
+            "Pushed TodoList {LocalId} to external as {ExternalId} with IdempotencyKey {IdempotencyKey}",
+            local.Id,
+            external.Id,
+            idempotencyKey
+        );
     }
 }

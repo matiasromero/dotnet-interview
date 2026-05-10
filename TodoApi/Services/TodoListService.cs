@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Dtos;
 using TodoApi.Models;
+using TodoApi.Sync.Models;
 
 namespace TodoApi.Services;
 
@@ -30,6 +31,10 @@ public class TodoListService : ITodoListService
         var todoList = new TodoList { Name = dto.Name, UpdatedAt = DateTime.UtcNow };
         _context.TodoList.Add(todoList);
         await _context.SaveChangesAsync();
+
+        _context.OutboxEvents.Add(BuildOutboxEvent(todoList.Id, OutboxOperation.Create));
+        await _context.SaveChangesAsync();
+
         _logger.LogInformation(
             "Created TodoList {TodoListId} with name {Name}",
             todoList.Id,
@@ -49,6 +54,7 @@ public class TodoListService : ITodoListService
 
         todoList.Name = dto.Name;
         todoList.UpdatedAt = DateTime.UtcNow;
+        _context.OutboxEvents.Add(BuildOutboxEvent(id, OutboxOperation.Update));
         await _context.SaveChangesAsync();
         _logger.LogInformation("Updated TodoList {TodoListId}", id);
         return true;
@@ -64,8 +70,19 @@ public class TodoListService : ITodoListService
         }
 
         _context.TodoList.Remove(todoList);
+        _context.OutboxEvents.Add(BuildOutboxEvent(id, OutboxOperation.Delete));
         await _context.SaveChangesAsync();
         _logger.LogInformation("Deleted TodoList {TodoListId}", id);
         return true;
     }
+
+    private static OutboxEvent BuildOutboxEvent(long entityId, OutboxOperation operation) =>
+        new()
+        {
+            EntityType = SyncEntityType.TodoList,
+            EntityId = entityId,
+            Operation = operation,
+            OccurredAt = DateTime.UtcNow,
+            IdempotencyKey = Guid.NewGuid(),
+        };
 }
