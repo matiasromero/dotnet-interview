@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using TodoApi.Sync.Configuration;
+using TodoApi.Sync.Data;
 using TodoApi.Sync.Models;
 using TodoApi.Sync.Services;
 
@@ -140,6 +141,40 @@ public sealed class SyncBackgroundService : BackgroundService
                             "Sync item pull tick threw — will retry on next interval"
                         );
                     }
+                }
+
+                try
+                {
+                    var retention = _options.CurrentValue.OutboxRetention;
+                    if (retention <= TimeSpan.Zero)
+                    {
+                        _logger.LogDebug(
+                            "Outbox retention disabled (OutboxRetention={Retention})",
+                            retention
+                        );
+                    }
+                    else
+                    {
+                        var db = scope.ServiceProvider.GetRequiredService<ISyncDbContext>();
+                        var cutoff = DateTime.UtcNow - retention;
+                        var purged = await db.PurgeProcessedOutboxEventsAsync(
+                            cutoff,
+                            stoppingToken
+                        );
+                        _logger.LogInformation(
+                            "Sync outbox retention tick: purged={Count} olderThan={Cutoff:o}",
+                            purged,
+                            cutoff
+                        );
+                    }
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Outbox retention purge tick threw");
                 }
             }
 
