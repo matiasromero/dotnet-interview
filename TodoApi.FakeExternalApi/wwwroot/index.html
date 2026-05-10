@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fake external todo api · :8080</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0E1014;
+  --surface: #161A21;
+  --surface-elevated: #1C2129;
+  --text: #D4D4D0;
+  --text-strong: #F0F0EC;
+  --muted: #5A6270;
+  --muted-strong: #7A8290;
+  --accent-amber: #E8B84F;
+  --accent-amber-dim: #B8923A;
+  --accent-cyan: #5DAFCC;
+  --accent-cyan-dim: #4889A0;
+  --rule: #252A33;
+  --rule-strong: #353B47;
+  --amber-bg: rgba(232, 184, 79, 0.10);
+  --cyan-bg: rgba(93, 175, 204, 0.10);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.65;
+  font-feature-settings: "tnum" on, "ss01" on;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  padding: 4rem 2rem 5rem;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(93, 175, 204, 0.045), transparent 50%),
+    radial-gradient(ellipse 60% 80% at 100% 100%, rgba(232, 184, 79, 0.035), transparent 50%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(255, 255, 255, 0.008) 2px 3px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.container { max-width: 880px; margin: 0 auto; position: relative; z-index: 2; }
+
+/* ─────────── HERO ─────────── */
+.hero { margin-bottom: 3rem; padding-top: 1rem; animation: fadeInUp 0.7s ease-out; }
+.meta-tag {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--muted);
+  letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 1.25rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.meta-tag::before {
+  content: ''; width: 8px; height: 8px; background: var(--accent-amber); border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-amber); animation: pulse 2.4s ease-in-out infinite;
+}
+h1 {
+  font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+  font-size: clamp(1.75rem, 5vw, 3rem); line-height: 1.04;
+  letter-spacing: -0.025em; color: var(--text-strong); margin-bottom: 1rem;
+}
+h1 .accent { color: var(--accent-amber); font-weight: 400; font-style: italic; }
+.subtitle { font-size: 1rem; color: var(--muted-strong); max-width: 36rem; }
+
+/* ─────────── TL;DR ─────────── */
+.tldr-op {
+  background: var(--surface); border: 1px solid var(--rule); border-left: 2px solid var(--accent-amber);
+  border-radius: 4px; padding: 1.25rem 1.5rem; margin: 2rem 0 3.5rem;
+  animation: fadeInUp 0.7s ease-out 0.15s backwards;
+}
+.tldr-op-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--accent-amber);
+  letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.85rem; font-weight: 500;
+}
+.tldr-op ul { list-style: none; display: grid; gap: 0.55rem; }
+.tldr-op li {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.86rem; color: var(--text);
+  display: grid; grid-template-columns: auto 1fr; gap: 0.5rem; align-items: baseline;
+}
+.tldr-op li::before { content: '→'; color: var(--muted); }
+.tldr-op li strong { font-weight: 700; margin-right: 0.5em; }
+.tldr-op li.amber strong { color: var(--accent-amber); }
+.tldr-op li.cyan strong { color: var(--accent-cyan); }
+.tldr-op li.muted strong { color: var(--muted-strong); }
+
+/* ─────────── SECTIONS ─────────── */
+.section { margin-bottom: 3.25rem; animation: fadeInUp 0.65s ease-out backwards; }
+.section:nth-of-type(1) { animation-delay: 0.3s; }
+.section:nth-of-type(2) { animation-delay: 0.42s; }
+.section:nth-of-type(3) { animation-delay: 0.54s; }
+.section h2 {
+  font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 1.25rem;
+  color: var(--text-strong); margin-bottom: 1rem; letter-spacing: -0.01em;
+  display: flex; align-items: baseline; gap: 0.5rem;
+}
+.section h2 .gt { color: var(--accent-cyan); }
+.section h2 .num { color: var(--muted); font-weight: 500; font-size: 0.95rem; }
+.section h2 .count {
+  margin-left: auto; color: var(--muted-strong); font-size: 0.85rem; font-weight: 500;
+}
+
+/* ─────────── EMPTY STATE ─────────── */
+.empty {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem; color: var(--muted-strong);
+  background: var(--surface); border: 1px dashed var(--rule); border-radius: 4px;
+  padding: 1rem 1.25rem;
+}
+.empty code { color: var(--accent-cyan); }
+.hidden { display: none; }
+
+/* ─────────── STATE (lists) ─────────── */
+.lists { display: grid; gap: 0.65rem; }
+.list-card {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 0.85rem 1rem; transition: border-color 0.15s ease;
+}
+.list-card[open] { border-color: var(--rule-strong); }
+.list-card summary {
+  cursor: pointer; display: grid; grid-template-columns: 1fr auto auto; gap: 0.85rem;
+  align-items: baseline; font-family: 'IBM Plex Mono', monospace; font-size: 0.84rem;
+  list-style: none;
+}
+.list-card summary::-webkit-details-marker { display: none; }
+.list-card .name { color: var(--text-strong); font-weight: 500; font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+.list-card .ext-id { color: var(--accent-cyan-dim); margin-right: 0.5rem; }
+.list-card .src-id { color: var(--muted); }
+.list-card .badge {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--accent-amber-dim);
+  background: var(--amber-bg); padding: 0.15rem 0.5rem; border-radius: 3px;
+}
+.list-card .ts { color: var(--muted-strong); font-size: 0.78rem; }
+.list-meta {
+  margin-top: 0.85rem; padding-top: 0.85rem; border-top: 1px dashed var(--rule);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--muted-strong);
+  display: grid; gap: 0.35rem;
+}
+.list-meta .kv { display: grid; grid-template-columns: 7rem 1fr; gap: 0.5rem; }
+.list-meta .kv .k { color: var(--muted); }
+.items {
+  margin-top: 0.85rem; display: grid; gap: 0.4rem; padding-left: 1rem;
+  border-left: 1.5px solid var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+}
+.item-row {
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 0.75rem; align-items: baseline;
+}
+.item-row .check { color: var(--accent-cyan); width: 1rem; }
+.item-row .check.pending { color: var(--accent-amber-dim); }
+.item-row .desc { color: var(--text); font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+.item-row .item-id { color: var(--accent-cyan-dim); font-size: 0.74rem; }
+.item-row .item-ts { color: var(--muted-strong); font-size: 0.72rem; }
+
+/* ─────────── REQUESTS ─────────── */
+.reqs { display: grid; gap: 0.25rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; }
+.req-row {
+  display: grid; grid-template-columns: 4rem 4.5rem 1fr 3.5rem 1fr;
+  gap: 0.75rem; padding: 0.4rem 0.75rem; border-radius: 3px; align-items: baseline;
+}
+.req-row:nth-child(odd) { background: var(--surface); }
+.req-row .rt-time { color: var(--muted-strong); font-size: 0.74rem; }
+.req-row .rt-method { font-weight: 700; color: var(--accent-amber); }
+.req-row .rt-method.GET { color: var(--accent-cyan-dim); }
+.req-row .rt-method.DELETE { color: var(--muted-strong); }
+.req-row .rt-path { color: var(--text); }
+.req-row .rt-status { font-weight: 700; }
+.req-row .rt-status.s2 { color: var(--accent-cyan); }
+.req-row .rt-status.s4 { color: var(--accent-amber-dim); }
+.req-row .rt-status.s5 { color: var(--accent-amber); }
+.req-row .rt-idem { color: var(--muted); font-size: 0.74rem; }
+
+/* ─────────── CHAOS ─────────── */
+.chaos-state {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+.chaos-state .cs-card {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 0.85rem 1rem; font-family: 'IBM Plex Mono', monospace;
+}
+.chaos-state .cs-card.active { border-color: var(--accent-amber); }
+.chaos-state .label { display: block; color: var(--muted); font-size: 0.7rem; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.35rem; }
+.chaos-state .value { font-size: 1.4rem; font-weight: 700; color: var(--text-strong); }
+.chaos-state .value.amber { color: var(--accent-amber); }
+.chaos-state .value.cyan { color: var(--accent-cyan); }
+
+.chaos-form {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 1.25rem 1.5rem; display: grid; gap: 1rem;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.85rem;
+}
+.chaos-form label {
+  display: grid; grid-template-columns: 9rem 1fr auto; gap: 0.85rem; align-items: center;
+  color: var(--muted-strong);
+}
+.chaos-form input[type="range"] { width: 100%; accent-color: var(--accent-amber); }
+.chaos-form select, .chaos-form input[type="number"] {
+  background: var(--bg); color: var(--text); border: 1px solid var(--rule-strong); border-radius: 3px;
+  padding: 0.4rem 0.6rem; font-family: inherit; font-size: 0.85rem; min-width: 6rem;
+}
+.chaos-form output { color: var(--accent-amber); font-weight: 700; min-width: 3rem; text-align: right; }
+.chaos-form .actions { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+.btn {
+  font-family: inherit; font-size: 0.85rem; font-weight: 500; letter-spacing: 0.08em;
+  text-transform: lowercase; padding: 0.5rem 1.1rem; border: 1px solid var(--rule-strong);
+  background: transparent; color: var(--text); border-radius: 3px; cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.btn:hover { border-color: var(--accent-amber); color: var(--accent-amber); }
+.btn-amber { border-color: var(--accent-amber-dim); color: var(--accent-amber); }
+.btn-amber:hover { background: var(--amber-bg); }
+.btn-ghost { color: var(--muted-strong); }
+.btn-ghost:hover { color: var(--text); border-color: var(--muted-strong); }
+
+/* ─────────── FOOTER ─────────── */
+footer {
+  margin-top: 4rem; padding-top: 1.5rem; border-top: 1px dashed var(--rule);
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted);
+  display: flex; flex-wrap: wrap; gap: 0.5rem 0.85rem;
+}
+footer code { color: var(--text); }
+footer a { color: var(--accent-cyan); text-decoration: none; border-bottom: 1px dotted var(--accent-cyan-dim); }
+footer a:hover { color: var(--accent-amber); border-bottom-color: var(--accent-amber); }
+
+/* ─────────── ANIMATIONS ─────────── */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .meta-tag::before { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  body { padding: 2rem 1rem 3rem; }
+  .chaos-state { grid-template-columns: 1fr; }
+  .chaos-form label { grid-template-columns: 1fr; gap: 0.4rem; }
+  .req-row { grid-template-columns: 1fr; gap: 0.2rem; padding: 0.55rem 0.75rem; }
+  .list-card summary { grid-template-columns: 1fr; gap: 0.25rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="hero">
+    <div class="meta-tag">// fake external todo api · port 8080 · drop-in</div>
+    <h1>FAKE_<span class="accent">external</span>_API</h1>
+    <p class="subtitle">Stand-in for the upstream <code>crunchloop/challenge-senior-engineer</code> reference impl. Stateful CRUD over the <code>external-api.yaml</code> contract. Idempotency replay. Chaos toggles. Last-50 request log.</p>
+  </header>
+
+  <div class="tldr-op">
+    <div class="tldr-op-label">// dashboard sections</div>
+    <ul>
+      <li class="cyan"><strong>§01 STATE</strong> TodoLists currently held by the fake. In-memory; reset on restart or POST /__admin/reset.</li>
+      <li class="amber"><strong>§02 LAST REQUESTS</strong> Newest first. Captures method · path · status · Idempotency-Key. Skips /__admin/* and /swagger/*.</li>
+      <li class="muted"><strong>§03 CHAOS</strong> Inject latency / fail-rate / status-code globally on contract endpoints (admin and swagger bypass it).</li>
+    </ul>
+  </div>
+
+  <section class="section">
+    <h2><span class="gt">&gt;</span> <span class="num">§01</span> STATE <span class="count" id="state-count"></span></h2>
+    <div id="state-empty" class="empty hidden">No <code>TodoList</code> yet. POST one to <code>/todolists</code> or run a sync tick from the TodoApi.</div>
+    <div id="state-lists" class="lists"></div>
+  </section>
+
+  <section class="section">
+    <h2><span class="gt">&gt;</span> <span class="num">§02</span> LAST REQUESTS <span class="count" id="reqs-count"></span></h2>
+    <div id="reqs-empty" class="empty hidden">No requests recorded yet. Trigger a sync tick or curl this server.</div>
+    <div id="reqs-list" class="reqs"></div>
+  </section>
+
+  <section class="section">
+    <h2><span class="gt">&gt;</span> <span class="num">§03</span> CHAOS</h2>
+    <div class="chaos-state">
+      <div class="cs-card" id="cs-card-fail"><span class="label">fail_rate</span><span id="cs-fail" class="value">0%</span></div>
+      <div class="cs-card" id="cs-card-status"><span class="label">status_code</span><span id="cs-status" class="value">500</span></div>
+      <div class="cs-card" id="cs-card-delay"><span class="label">delay_ms</span><span id="cs-delay" class="value">0</span></div>
+    </div>
+    <form id="chaos-form" class="chaos-form" autocomplete="off">
+      <label>fail_rate (0-100)
+        <input id="f-rate" type="range" min="0" max="100" value="0">
+        <output id="f-rate-out">0</output>
+      </label>
+      <label>status_code
+        <select id="f-status">
+          <option>500</option><option>503</option><option>502</option>
+          <option>504</option><option>429</option><option>408</option>
+        </select>
+        <span></span>
+      </label>
+      <label>delay_ms (0-30000)
+        <input id="f-delay" type="number" min="0" max="30000" value="0" step="100">
+        <span></span>
+      </label>
+      <div class="actions">
+        <button type="submit" class="btn btn-amber">apply chaos</button>
+        <button type="button" id="btn-reset" class="btn btn-ghost">reset all</button>
+      </div>
+    </form>
+  </section>
+
+  <footer>
+    <span>fake_external_api</span>
+    <span>·</span>
+    <code><a href="/swagger" target="_blank">swagger</a></code>
+    <span>·</span>
+    <code>polls /__admin/state every 1s</code>
+    <span>·</span>
+    <code>see README.md "Running with the Fake External API"</code>
+  </footer>
+</div>
+
+<script>
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+function trunc(s, n) { return !s ? '' : (s.length > n ? s.slice(0, n) + '…' : s); }
+function fmtTs(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour12: false });
+}
+function fmtRel(iso) {
+  if (!iso) return '';
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 1000) return 'now';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h';
+  return Math.floor(h / 24) + 'd';
+}
+function statusClass(code) {
+  if (code >= 500) return 's5';
+  if (code >= 400) return 's4';
+  if (code >= 200 && code < 300) return 's2';
+  return '';
+}
+function escape(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[c]);
+}
+
+function renderLists(lists) {
+  const root = $('state-lists');
+  $('state-count').textContent = lists.length ? `(${lists.length})` : '';
+  $('state-empty').classList.toggle('hidden', lists.length > 0);
+  if (!lists.length) { root.innerHTML = ''; return; }
+
+  root.innerHTML = lists.map((l) => `
+    <details class="list-card">
+      <summary>
+        <div>
+          <span class="ext-id">${escape(trunc(l.id, 8))}</span>
+          <span class="name">${escape(l.name)}</span>
+          <span class="src-id">src=${escape(trunc(l.source_id, 12) || '∅')}</span>
+        </div>
+        <span class="badge">${l.items.length} item${l.items.length === 1 ? '' : 's'}</span>
+        <span class="ts">${fmtTs(l.updated_at)}</span>
+      </summary>
+      <div class="list-meta">
+        <div class="kv"><span class="k">external_id</span><span>${escape(l.id)}</span></div>
+        <div class="kv"><span class="k">source_id</span><span>${escape(l.source_id || '(empty)')}</span></div>
+        <div class="kv"><span class="k">created_at</span><span>${escape(l.created_at)}</span></div>
+        <div class="kv"><span class="k">updated_at</span><span>${escape(l.updated_at)}</span></div>
+      </div>
+      ${l.items.length ? `<div class="items">${l.items.map((i) => `
+        <div class="item-row">
+          <span class="check ${i.completed ? '' : 'pending'}">${i.completed ? '[x]' : '[ ]'}</span>
+          <span class="desc">${escape(i.description)}</span>
+          <span class="item-id">${escape(trunc(i.id, 8))}</span>
+          <span class="item-ts">${fmtTs(i.updated_at)}</span>
+        </div>`).join('')}</div>` : ''}
+    </details>
+  `).join('');
+}
+
+function renderRequests(reqs) {
+  const root = $('reqs-list');
+  $('reqs-count').textContent = reqs.length ? `(${reqs.length})` : '';
+  $('reqs-empty').classList.toggle('hidden', reqs.length > 0);
+  if (!reqs.length) { root.innerHTML = ''; return; }
+
+  root.innerHTML = reqs.map((r) => `
+    <div class="req-row">
+      <span class="rt-time">${escape(fmtRel(r.timestamp))}</span>
+      <span class="rt-method ${escape(r.method)}">${escape(r.method)}</span>
+      <span class="rt-path">${escape(r.path)}</span>
+      <span class="rt-status ${statusClass(r.status)}">${r.status}</span>
+      <span class="rt-idem">${escape(trunc(r.idempotency_key, 8) || '—')}</span>
+    </div>
+  `).join('');
+}
+
+function renderChaos(c) {
+  $('cs-fail').textContent = (c.fail_rate || 0) + '%';
+  $('cs-fail').className = 'value ' + ((c.fail_rate || 0) > 0 ? 'amber' : '');
+  $('cs-status').textContent = c.status_code;
+  $('cs-delay').textContent = c.delay_ms;
+
+  $('cs-card-fail').classList.toggle('active', (c.fail_rate || 0) > 0);
+  $('cs-card-status').classList.toggle('active', false);
+  $('cs-card-delay').classList.toggle('active', (c.delay_ms || 0) > 0);
+}
+
+async function refresh() {
+  try {
+    const res = await fetch('/__admin/state');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderLists(data.lists || []);
+    renderRequests(data.last_requests || []);
+    renderChaos(data.chaos || { fail_rate: 0, status_code: 500, delay_ms: 0 });
+  } catch (_) { /* ignore transient errors */ }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const rate = $('f-rate');
+  const rateOut = $('f-rate-out');
+  rate.addEventListener('input', () => { rateOut.value = rate.value; });
+
+  $('chaos-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      fail_rate: Number(rate.value),
+      status_code: Number($('f-status').value),
+      delay_ms: Number($('f-delay').value),
+    };
+    await fetch('/__admin/chaos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    refresh();
+  });
+
+  $('btn-reset').addEventListener('click', async () => {
+    if (!confirm('Reset all state and chaos config?')) return;
+    await fetch('/__admin/reset', { method: 'POST' });
+    refresh();
+  });
+
+  refresh();
+  setInterval(refresh, 1000);
+});
+</script>
+</body>
+</html>

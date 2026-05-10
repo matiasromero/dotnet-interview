@@ -251,6 +251,55 @@ the broadcaster, the hub, and the client re-fetch.
 The full implementation guide for the React client lives at
 [`docs/realtime-frontend-integration.md`](./docs/realtime-frontend-integration.md).
 
+### Running with the Fake External API (no Docker)
+
+For fast local iteration and showcase demos, the solution ships
+[`TodoApi.FakeExternalApi`](./TodoApi.FakeExternalApi/) — a stateful in-memory
+stand-in for the upstream reference impl that implements the same
+[`assets/external-api.yaml`](./assets/external-api.yaml) contract with full HTTP
+fidelity (snake_case JSON, `Idempotency-Key` replay, real status codes). The
+sync engine exercises Polly retries and the genuine push/pull paths against it
+exactly as it would against the upstream Docker.
+
+Run it in a separate terminal — the default port `8080` is a drop-in for
+`ExternalApi:BaseAddress` and requires no `appsettings.json` change:
+
+```bash
+dotnet run --project TodoApi.FakeExternalApi
+```
+
+Then start `TodoApi` as usual:
+
+```bash
+dotnet run --project TodoApi
+```
+
+Open [http://localhost:8080](http://localhost:8080) for the inspection
+dashboard:
+
+- **§01 STATE** — `TodoList`s currently held by the fake (in-memory; reset on
+  process restart or `POST /__admin/reset`).
+- **§02 LAST REQUESTS** — last 50 inbound HTTP calls with method, path, status,
+  and `Idempotency-Key` for visual confirmation of sync activity.
+- **§03 CHAOS** — slider for fail-rate (`0-100%`), status code
+  (`500 / 503 / 502 / 504 / 429 / 408`), and per-request delay (`0-30000` ms).
+  Settings apply globally to the contract endpoints (admin and Swagger bypass
+  them). Useful to demo Polly retries and `Partial` runs live.
+
+Admin endpoints (also reachable via curl):
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET  /__admin/state` | Full snapshot consumed by the UI (lists + chaos + recent requests). |
+| `POST /__admin/reset` | Clear all lists, idempotency cache, request log, and chaos config. |
+| `POST /__admin/chaos` | Body: `{ "fail_rate": 0-100, "status_code": 4xx-5xx, "delay_ms": 0-30000 }`. |
+| `POST /__admin/seed`  | Body: `{ "lists": [...] }`. Bulk-load `ExternalTodoList`s, useful for adoption (CASE B) demos. |
+
+Swagger is exposed at `/swagger` for ad-hoc requests against the contract.
+
+For high-fidelity verification against the real upstream reference impl, see
+[Running with the External API](#running-with-the-external-api) below.
+
 ### Running with the External API
 
 The external API contract is documented in
