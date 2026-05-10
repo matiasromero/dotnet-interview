@@ -331,6 +331,8 @@ footer a:hover { color: var(--accent-amber); border-bottom-color: var(--accent-a
 
 const $ = (id) => document.getElementById(id);
 
+const openListIds = new Set();
+
 function trunc(s, n) { return !s ? '' : (s.length > n ? s.slice(0, n) + '…' : s); }
 function fmtTs(iso) {
   if (!iso) return '';
@@ -365,10 +367,15 @@ function renderLists(lists) {
   const root = $('state-lists');
   $('state-count').textContent = lists.length ? `(${lists.length})` : '';
   $('state-empty').classList.toggle('hidden', lists.length > 0);
-  if (!lists.length) { root.innerHTML = ''; return; }
+  if (!lists.length) { root.innerHTML = ''; openListIds.clear(); return; }
+
+  const currentIds = new Set(lists.map((l) => l.id));
+  for (const id of openListIds) {
+    if (!currentIds.has(id)) openListIds.delete(id);
+  }
 
   root.innerHTML = lists.map((l) => `
-    <details class="list-card">
+    <details class="list-card" data-list-id="${escape(l.id)}"${openListIds.has(l.id) ? ' open' : ''}>
       <summary>
         <div>
           <span class="ext-id">${escape(trunc(l.id, 8))}</span>
@@ -393,6 +400,15 @@ function renderLists(lists) {
         </div>`).join('')}</div>` : ''}
     </details>
   `).join('');
+
+  root.querySelectorAll('details.list-card').forEach((el) => {
+    el.addEventListener('toggle', () => {
+      const id = el.getAttribute('data-list-id');
+      if (!id) return;
+      if (el.open) openListIds.add(id);
+      else openListIds.delete(id);
+    });
+  });
 }
 
 function renderRequests(reqs) {

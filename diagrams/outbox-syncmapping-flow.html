@@ -1009,6 +1009,101 @@ _context.OutboxEvents.Add(<span class="keyword">new</span> <span class="type">Ou
   </div>
 </section>
 
+<!-- ═══════════════════ §05 DELETE WITH CHILDREN ═══════════════════ -->
+<section class="section">
+  <h2><span class="num">§05</span> DELETE with children: outbox parent + anti-join orphans</h2>
+  <p>Deleting a <code>TodoList</code> that owns N <code>TodoListItem</code>s exposes a deliberate asymmetry. The list's intent is captured as a single <span class="tag tag-amber">OutboxEvent</span>; the children disappear locally via EF cascade <em>without</em> going through the service layer, so no item event is written. The N item DELETEs that hit the external come later, from Phase B of the item push: an anti-join over the dangling SyncMappings whose <code>LocalId</code> no longer resolves locally. A <span class="tag tag-amber">404</span> on each child DELETE is the expected case (the external already cascaded) — Slice 4's "404 grace" treats it as success.</p>
+
+  <div class="diagram">
+    <!-- Zone 1: WRITE — t0 -->
+    <div class="diagram-zone-label">// write moment — t0</div>
+
+    <div class="diagram-box">
+      <div class="diagram-box-title">User</div>
+      <div class="diagram-box-fields">
+        <div>DELETE /api/todolists/{id}</div>
+      </div>
+    </div>
+
+    <div class="connector short"></div>
+
+    <div class="diagram-box">
+      <div class="diagram-box-title">TodoListService.DeleteAsync</div>
+      <div class="diagram-box-fields">
+        <div>_context.TodoList.Remove(list)</div>
+        <div>_context.OutboxEvents.Add(TL/Del)</div>
+        <div>SaveChangesAsync</div>
+      </div>
+    </div>
+
+    <div class="connector medium">
+      <span class="connector-label">// same SaveChanges · EF cascade fires</span>
+    </div>
+
+    <!-- Y split: 1 outbox event for the parent, N orphan mappings for children -->
+    <div class="output-split">
+      <svg class="split-svg" viewBox="0 0 400 56" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M 200,0 L 200,18 Q 200,28 190,32 L 90,42 Q 80,44 80,52" stroke="#5A6270" stroke-width="1.5" fill="none" />
+        <path d="M 200,0 L 200,18 Q 200,28 210,32 L 310,42 Q 320,44 320,52" stroke="#5A6270" stroke-width="1.5" fill="none" />
+        <polygon points="76,50 80,56 84,50" fill="#5A6270" />
+        <polygon points="316,50 320,56 324,50" fill="#5A6270" />
+      </svg>
+    </div>
+
+    <div class="output-row">
+      <div class="diagram-box amber">
+        <div class="diagram-box-title">OutboxEvent (parent only)</div>
+        <div class="diagram-box-fields">
+          <div><span class="field">EntityType</span> = TodoList</div>
+          <div><span class="field">Op</span> = Delete</div>
+          <div><span class="field">ProcessedAt</span> = NULL <span class="tag tag-muted">pending</span></div>
+        </div>
+      </div>
+
+      <div class="diagram-box cyan">
+        <div class="diagram-box-title">SyncMapping &times;N (orphan)</div>
+        <div class="diagram-box-fields">
+          <div><span class="field">EntityType</span> = TodoListItem</div>
+          <div><span class="field">LocalId</span> = ? <span class="tag tag-muted">deleted</span></div>
+          <div><span class="field">ParentExternalId</span> = ext-abc</div>
+          <div class="propagation-note">↑ children gone, mapping survives</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tick boundary -->
+    <div class="tick-boundary">
+      <div class="tick-line"></div>
+      <span class="tick-label">// background worker tick · t1</span>
+    </div>
+
+    <!-- Zone 2: PUSH TICK — t1 -->
+    <div class="diagram-zone-label t1">// push moment — t1</div>
+
+    <div class="output-row">
+      <div class="diagram-box amber">
+        <div class="diagram-box-title">Phase 1 · List Push (drain outbox)</div>
+        <div class="diagram-box-fields">
+          <div><span class="field">→</span> DELETE /todolists/{ext}</div>
+          <div><span class="field">status</span> 204 (or 404 grace)</div>
+          <div><span class="field">close</span> OutboxEvent</div>
+        </div>
+      </div>
+
+      <div class="diagram-box amber">
+        <div class="diagram-box-title">Phase 2 · Item Push (anti-join)</div>
+        <div class="diagram-box-fields">
+          <div><span class="field">scan</span> Mappings WHERE NOT EXISTS Item</div>
+          <div><span class="field">→</span> DELETE /todolists/{parentExt}/todoitems/{itemExt} &times;N</div>
+          <div><span class="field">status</span> 404 = grace = success</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p>External traffic for a list with N items is <span class="tag tag-amber">N &times; 404</span> + <span class="tag tag-cyan">1 &times; 204</span> when the external cascades (FakeExternalApi does), or <span class="tag tag-cyan">N &times; 204</span> + <span class="tag tag-cyan">1 &times; 204</span> when it does not — same code path, same end state. The per-item DELETEs are <em>defensive</em>: correctness has to hold for any conformant external, and the OpenAPI contract does not document cascade behaviour. No optimization to skip them. See <code>NOTES.md</code> Slice 4 (2026-05-09) and the 2026-05-10 clarification entry for the full reasoning.</p>
+</section>
+
 <!-- ═══════════════════ FINAL TL;DR ═══════════════════ -->
 <aside class="tldr-final" aria-label="Conceptual summary">
   <div class="tldr-final-label">TL;DR — conceptual</div>
