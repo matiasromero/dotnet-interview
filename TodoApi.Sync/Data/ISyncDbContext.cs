@@ -185,4 +185,15 @@ public interface ISyncDbContext
     /// Own SaveChanges. Idempotent: marking an already-processed event is a no-op.
     /// </summary>
     Task MarkOutboxEventProcessedAsync(long eventId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes processed outbox events whose <c>OccurredAt</c> is strictly before the given
+    /// cutoff. Returns the number of events deleted. Implemented via a provider-aware bulk
+    /// delete: <c>ExecuteDeleteAsync</c> on relational providers, RemoveRange + SaveChanges on
+    /// InMemory.
+    /// </summary>
+    Task<int> PurgeProcessedOutboxEventsAsync(
+        DateTime cutoff,
+        CancellationToken cancellationToken = default
+    );
 }

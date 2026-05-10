@@ -479,6 +479,14 @@ public class TodoContext : DbContext, ISyncDbContext
         await SaveChangesAsync(cancellationToken);
     }
 
+    public Task<int> PurgeProcessedOutboxEventsAsync(
+        DateTime cutoff,
+        CancellationToken cancellationToken = default
+    ) =>
+        OutboxEvents
+            .Where(e => e.ProcessedAt != null && e.OccurredAt < cutoff)
+            .ExecuteBulkDeleteAsync(this, cancellationToken);
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
