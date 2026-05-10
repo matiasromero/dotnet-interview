@@ -50,8 +50,41 @@ For the rationale behind each table see
 ## Database
 
 The repo ships with a devcontainer that provisions a SQL Server 2022 instance.
-Outside the devcontainer, provision SQL Server yourself and update the
-connection string in `TodoApi/appsettings.Development.json` (git-ignored).
+Inside the devcontainer, the connection string is injected as an environment
+variable (`ConnectionStrings__TodoContext`) in
+[`.devcontainer/docker-compose.yml`](.devcontainer/docker-compose.yml); no
+`appsettings.Development.json` is required.
+
+Outside the devcontainer, provision SQL Server yourself and put the connection
+string under `ConnectionStrings:TodoContext` in
+`TodoApi/appsettings.Development.json` (git-ignored).
+
+## Inside the devcontainer
+
+After "Reopen in Container", `postCreateCommand` runs
+`dotnet tool restore && dotnet restore && dotnet build` so `csharpier` and
+`dotnet-ef` are ready. `dotnet test` runs without SQL (unit tests use EF
+InMemory; integration tests stub the external API with WireMock).
+
+To run the full demo end-to-end, use two terminals:
+
+```bash
+# Terminal A — fake external API + dashboard
+dotnet run --project TodoApi.FakeExternalApi
+
+# Terminal B — TodoApi
+dotnet run --project TodoApi
+```
+
+From the host, the following ports are forwarded:
+
+- `http://localhost:5000/swagger` — TodoApi Swagger UI.
+- `http://localhost:8080` — FakeApi inspection dashboard.
+- `localhost:1433` — SQL Server (e.g. Azure Data Studio with `sa` / `Password123`).
+
+If the app can't reach SQL, verify the `ConnectionStrings__TodoContext` env var
+is set on the `app` container and that `sqlserver` is healthy
+(`docker compose ps`).
 
 ## Build
 

@@ -8,6 +8,8 @@ services:
       - sqlserver
     volumes:
       - ..:/app
+    environment:
+      - ConnectionStrings__TodoContext=Server=sqlserver,1433;Database=Todos;User Id=sa;Password=Password123;TrustServerCertificate=True
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
