@@ -1730,7 +1730,7 @@ public class TodoListItemSyncServiceTests
             NullLogger<TodoListItemSyncService>.Instance
         );
 
-        // El externo solo devuelve item-10. item-11 desapareció.
+        // The external returns only item-10. item-11 disappeared.
         var mappedExternals = new[]
         {
             new ExternalListWithMapping(
@@ -1817,7 +1817,7 @@ public class TodoListItemSyncServiceTests
 
         var sut = new TodoListItemSyncService(ctx, client.Object, loggerMock.Object);
 
-        // Externo: lista padre viva pero sin items.
+        // External: parent list alive but with no items.
         var mappedExternals = new[]
         {
             new ExternalListWithMapping(
@@ -1851,9 +1851,9 @@ public class TodoListItemSyncServiceTests
     [Fact]
     public async Task PullTodoListItemsAsync_MappedItemDisappearedButParentListAlsoMissing_DoesNotDeleteInThisPass()
     {
-        // Si el padre desapareció externamente, el item-pull 2nd pass NO debe procesarlo:
-        // ya lo limpia ApplyExternalDeleteListAsync (cascade) en el list-pull. El filtro por
-        // ParentExternalId IN seenExternalListIds asegura que no haya double-delete.
+        // If the parent disappeared externally, the item-pull 2nd pass must NOT process it:
+        // ApplyExternalDeleteListAsync (cascade) in the list-pull already cleans it up. The filter on
+        // ParentExternalId IN seenExternalListIds ensures there is no double-delete.
         await using var ctx = new TodoContext(NewDbOptions());
         var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
 
@@ -1908,9 +1908,9 @@ public class TodoListItemSyncServiceTests
             NullLogger<TodoListItemSyncService>.Instance
         );
 
-        // mappedExternals está vacío: simulando que el list-pull NO encontró ext-list-1
-        // (lista padre desapareció). En la orquestación real, el list-pull haría cascade-delete
-        // del item antes; este test aísla el item-pull 2nd pass para verificar el filtro.
+        // mappedExternals is empty: simulating that the list-pull did NOT find ext-list-1
+        // (parent list disappeared). In real orchestration, the list-pull would cascade-delete
+        // the item beforehand; this test isolates the item-pull 2nd pass to verify the filter.
         var mappedExternals = Array.Empty<ExternalListWithMapping>();
 
         var result = await sut.PullTodoListItemsAsync(mappedExternals, CancellationToken.None);
@@ -1920,7 +1920,7 @@ public class TodoListItemSyncServiceTests
         Assert.Equal(0, result.Failed);
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
-        // Item y mapping siguen intactos: el item-pull no los toca.
+        // Item and mapping remain intact: the item-pull does not touch them.
         Assert.Single(ctx.TodoListItem);
         Assert.Equal(1, ctx.SyncMappings.Count(m => m.EntityType == SyncEntityType.TodoListItem));
     }
@@ -2055,7 +2055,7 @@ public class TodoListItemSyncServiceTests
             NullLogger<TodoListItemSyncService>.Instance
         );
 
-        // Cada lista padre devuelve 1 item; los otros 2 desaparecieron.
+        // Each parent list returns 1 item; the other 2 disappeared.
         var mappedExternals = new[]
         {
             new ExternalListWithMapping(
@@ -2175,7 +2175,7 @@ public class TodoListItemSyncServiceTests
         var result = await sut.PullTodoListItemsAsync(mappedExternals, CancellationToken.None);
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
-        Assert.Equal(1, result.Total); // solo el reconcile, sin deletes
+        Assert.Equal(1, result.Total); // only the reconcile, no deletes
         Assert.Equal(1, result.Pushed);
 
         Assert.Single(ctx.TodoListItem);

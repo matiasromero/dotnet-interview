@@ -182,7 +182,7 @@ public class TodoListSyncServiceTests
             Times.Exactly(2)
         );
 
-        // Mapping previo intacto + 2 nuevos.
+        // Previous mapping intact + 2 new ones.
         Assert.Equal(3, ctx.SyncMappings.Count());
     }
 
@@ -543,7 +543,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(1L, listMapping.LocalId);
         Assert.Equal("ext-1", listMapping.ExternalId);
 
-        // Solo el item parseable se mapea; el del SourceId malformado se saltea.
+        // Only the parseable item is mapped; the one with malformed SourceId is skipped.
         var itemMapping = Assert.Single(
             ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem).ToList()
         );
@@ -641,7 +641,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(1L, listMapping.LocalId);
         Assert.Equal("ext-1", listMapping.ExternalId);
 
-        // El SourceId parsea pero no matchea ningún item local: 0 mappings de item.
+        // SourceId parses but does not match any local item: 0 item mappings.
         Assert.Empty(
             ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoListItem).ToList()
         );
@@ -870,7 +870,7 @@ public class TodoListSyncServiceTests
 
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
-        Assert.Single(ctx.TodoList); // sigue siendo solo el orphan, no se duplicó
+        Assert.Single(ctx.TodoList); // still only the orphan, was not duplicated
         var mapping = Assert.Single(ctx.SyncMappings);
         Assert.Equal(42L, mapping.LocalId);
         Assert.Equal("ext-42", mapping.ExternalId);
@@ -1332,7 +1332,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(1, result.Failed);
         Assert.Equal(SyncRunStatus.Partial, result.Status);
 
-        // Las dos creaciones nuevas se persisten; la mapeada queda intacta (PATCH falló).
+        // The two new creations are persisted; the mapped one stays intact (PATCH failed).
         Assert.Equal(3, ctx.TodoList.Count());
         Assert.Equal(3, ctx.SyncMappings.Count());
     }
@@ -1401,7 +1401,7 @@ public class TodoListSyncServiceTests
         await using var ctx = new TodoContext(NewDbOptions());
         var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
 
-        // Mapping huérfano: LocalId apunta a una TodoList que no existe.
+        // Orphan mapping: LocalId points to a TodoList that does not exist.
         ctx.SyncMappings.Add(
             new SyncMapping
             {
@@ -1531,7 +1531,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(1, result.Failed);
         Assert.Equal(SyncRunStatus.Failed, result.Status);
 
-        // Mapping persiste para reintentarse en el próximo tick.
+        // Mapping persists to be retried on the next tick.
         var mapping = Assert.Single(ctx.SyncMappings);
         Assert.Equal("ext-flaky", mapping.ExternalId);
     }
@@ -1539,8 +1539,8 @@ public class TodoListSyncServiceTests
     [Fact]
     public async Task PushTodoListsAsync_OrphanListMappingWithChildItemMappings_DeletesListMappingChildMappingsRemain()
     {
-        // El push-list NO toca los mappings de items hijos huérfanos. Eso lo limpia el push-item
-        // siguiente (con 404 grace porque el list-DELETE ya hizo cascade externamente).
+        // The push-list does NOT touch orphan child item mappings. That is cleaned up by the next
+        // push-item (with 404 grace because the list-DELETE already cascaded externally).
         await using var ctx = new TodoContext(NewDbOptions());
         var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
 
@@ -1597,11 +1597,11 @@ public class TodoListSyncServiceTests
         Assert.Equal(1, result.Pushed);
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
-        // Sólo el mapping de TodoList se eliminó.
+        // Only the TodoList mapping was deleted.
         Assert.Empty(ctx.SyncMappings.Where(m => m.EntityType == SyncEntityType.TodoList).ToList());
         Assert.Equal(2, ctx.SyncMappings.Count(m => m.EntityType == SyncEntityType.TodoListItem));
 
-        // El service no llama a DeleteTodoItemAsync — eso es responsabilidad del push-item.
+        // The service does not call DeleteTodoItemAsync — that is the push-item's responsibility.
         client.Verify(
             c =>
                 c.DeleteTodoItemAsync(
@@ -1617,7 +1617,7 @@ public class TodoListSyncServiceTests
     public async Task PushTodoListsAsync_NoOrphans_DoesNotCallDelete()
     {
         await using var ctx = new TodoContext(NewDbOptions());
-        // Una lista con su mapping completo (no-orphan).
+        // A list with its complete mapping (not-orphan).
         ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 1, Name = "Synced" });
         ctx.SyncMappings.Add(
             new SyncMapping
@@ -1632,7 +1632,7 @@ public class TodoListSyncServiceTests
         await ctx.SaveChangesAsync();
 
         var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
-        // Strict mock: si el service llama DeleteTodoListAsync, este test falla.
+        // Strict mock: if the service calls DeleteTodoListAsync, this test fails.
 
         var sut = new TodoListSyncService(
             ctx,
@@ -1655,7 +1655,7 @@ public class TodoListSyncServiceTests
         await using var ctx = new TodoContext(NewDbOptions());
         var snapshot = new DateTime(2026, 5, 9, 10, 0, 0, DateTimeKind.Utc);
 
-        // Una lista nueva (será POST) + un mapping huérfano (será DELETE).
+        // A new list (will be POST) + an orphan mapping (will be DELETE).
         ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = 5, Name = "New" });
         ctx.SyncMappings.Add(
             new SyncMapping
@@ -1708,7 +1708,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(0, result.Failed);
         Assert.Equal(SyncRunStatus.Succeeded, result.Status);
 
-        // Mapping del orphan eliminado, mapping de la nueva lista persistido.
+        // Orphan mapping deleted, new list mapping persisted.
         var mapping = Assert.Single(ctx.SyncMappings);
         Assert.Equal(5L, mapping.LocalId);
         Assert.Equal("ext-5", mapping.ExternalId);
@@ -1819,7 +1819,7 @@ public class TodoListSyncServiceTests
         Assert.Empty(ctx.TodoListItem);
         Assert.Empty(ctx.SyncMappings);
 
-        // El 2nd pass NO devuelve esta lista al item pull (la lista ya no existe).
+        // The 2nd pass does NOT return this list to the item pull (the list no longer exists).
         Assert.Empty(mappedExternals);
     }
 
@@ -1923,11 +1923,11 @@ public class TodoListSyncServiceTests
         Assert.Empty(ctx.TodoList);
         Assert.Empty(ctx.SyncMappings);
 
-        // CurrentLocalUpdatedAt > MinValue es estrictamente true cuando local.UpdatedAt > MinValue
-        // pero LocalUpdatedAtAtSync == null se trata como MinValue. Para detectar "edits desde
-        // last sync" exigimos que local.UpdatedAt > LocalUpdatedAtAtSync ?? MinValue, lo cual es
-        // true aquí — pero la decisión es: con null tratado como MinValue, evitar el ruido del
-        // Warning para mappings legacy que nunca recibieron snapshot. Por lo tanto, NO Warning.
+        // CurrentLocalUpdatedAt > MinValue is strictly true when local.UpdatedAt > MinValue
+        // but LocalUpdatedAtAtSync == null is treated as MinValue. To detect "edits since
+        // last sync" we require local.UpdatedAt > LocalUpdatedAtAtSync ?? MinValue, which is
+        // true here — but the decision is: with null treated as MinValue, avoid the noise of
+        // the Warning for legacy mappings that never received a snapshot. Therefore, NO Warning.
         loggerMock.Verify(
             l =>
                 l.Log(
@@ -2108,7 +2108,7 @@ public class TodoListSyncServiceTests
         await ctx.SaveChangesAsync();
 
         var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
-        // Solo ext-3 sigue en el GET; ext-1 y ext-2 desaparecieron.
+        // Only ext-3 remains in the GET; ext-1 and ext-2 disappeared.
         client
             .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { ExternalListAt("ext-3", "3", "Survivor", snapshot) });
@@ -2162,7 +2162,7 @@ public class TodoListSyncServiceTests
         await ctx.SaveChangesAsync();
 
         var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
-        // GET devuelve solo una lista nueva (no la mapeada).
+        // GET returns only a new list (not the mapped one).
         client
             .Setup(c => c.GetTodoListsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new[] { ExternalListAt("ext-new", null, "Brand new", snapshot) });
@@ -2179,7 +2179,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(2, result.Total); // 1 fetched + 1 deleted
         Assert.Equal(2, result.Pushed);
 
-        // Local antiguo borrado, local nuevo creado.
+        // Old local deleted, new local created.
         var local = Assert.Single(ctx.TodoList);
         Assert.Equal("Brand new", local.Name);
 
@@ -2347,7 +2347,7 @@ public class TodoListSyncServiceTests
         Assert.Equal(1, result.Failed);
         Assert.Equal(SyncRunStatus.Partial, result.Status);
 
-        // ext-2 queda; ext-1 y ext-3 se eliminaron.
+        // ext-2 remains; ext-1 and ext-3 were deleted.
         var remaining = Assert.Single(ctx.SyncMappings);
         Assert.Equal("ext-2", remaining.ExternalId);
     }
