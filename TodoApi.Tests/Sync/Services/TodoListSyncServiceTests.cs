@@ -1,7 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
+using TodoApi.Sync.Configuration;
 using TodoApi.Sync.External;
 using TodoApi.Sync.External.Models;
 using TodoApi.Sync.Models;
@@ -26,6 +28,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -80,6 +83,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -154,6 +158,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -230,6 +235,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -341,6 +347,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -421,6 +428,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -528,7 +536,12 @@ public class TodoListSyncServiceTests
 
         var loggerMock = new Mock<ILogger<TodoListSyncService>>();
 
-        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions()),
+            loggerMock.Object
+        );
 
         var result = await sut.PushTodoListsAsync(CancellationToken.None);
 
@@ -626,7 +639,12 @@ public class TodoListSyncServiceTests
 
         var loggerMock = new Mock<ILogger<TodoListSyncService>>();
 
-        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions()),
+            loggerMock.Object
+        );
 
         var result = await sut.PushTodoListsAsync(CancellationToken.None);
 
@@ -686,6 +704,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -716,6 +735,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -782,6 +802,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -863,6 +884,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -917,6 +939,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -990,6 +1013,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1055,6 +1079,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1124,6 +1149,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1182,6 +1208,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1239,6 +1266,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1322,6 +1350,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1350,6 +1379,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1385,6 +1415,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1424,6 +1455,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1478,6 +1510,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1521,6 +1554,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1588,6 +1622,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1637,6 +1672,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1698,6 +1734,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1805,6 +1842,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -1859,7 +1897,12 @@ public class TodoListSyncServiceTests
 
         var loggerMock = new Mock<ILogger<TodoListSyncService>>();
 
-        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions()),
+            loggerMock.Object
+        );
 
         var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
@@ -1915,7 +1958,12 @@ public class TodoListSyncServiceTests
 
         var loggerMock = new Mock<ILogger<TodoListSyncService>>();
 
-        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions()),
+            loggerMock.Object
+        );
 
         var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
@@ -1976,7 +2024,12 @@ public class TodoListSyncServiceTests
 
         var loggerMock = new Mock<ILogger<TodoListSyncService>>();
 
-        var sut = new TodoListSyncService(ctx, client.Object, loggerMock.Object);
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions()),
+            loggerMock.Object
+        );
 
         var (result, _) = await sut.PullTodoListsAsync(CancellationToken.None);
 
@@ -2033,6 +2086,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2116,6 +2170,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2170,6 +2225,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2278,6 +2334,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             dbMock.Object,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2337,6 +2394,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2380,6 +2438,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2437,6 +2496,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2486,6 +2546,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2520,6 +2581,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2566,6 +2628,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2618,6 +2681,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2651,6 +2715,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2695,6 +2760,7 @@ public class TodoListSyncServiceTests
         var sut = new TodoListSyncService(
             ctx,
             client.Object,
+            Options.Create(new SyncOptions()),
             NullLogger<TodoListSyncService>.Instance
         );
 
@@ -2704,6 +2770,56 @@ public class TodoListSyncServiceTests
         Assert.Equal(0, result.Failed);
         var evt = Assert.Single(ctx.OutboxEvents);
         Assert.NotNull(evt.ProcessedAt);
+        client.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OutboxBatchSize_RespectsLimit()
+    {
+        // Seed 5 already-mapped lists with pending Create events. Phase A dispatch sees the
+        // mapping and marks processed without POST (slice 6 idempotent path). Phase B's legacy
+        // anti-join finds no unmapped lists, so the only mechanism that touches events is the
+        // Phase A drain capped by OutboxBatchSize.
+        await using var ctx = new TodoContext(NewDbOptions());
+        for (long i = 1; i <= 5; i++)
+        {
+            ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = i, Name = $"List {i}" });
+            ctx.SyncMappings.Add(
+                new SyncMapping
+                {
+                    EntityType = SyncEntityType.TodoList,
+                    LocalId = i,
+                    ExternalId = $"ext-{i}",
+                    LastSyncedAt = DateTime.UtcNow,
+                    IdempotencyKey = Guid.NewGuid(),
+                }
+            );
+            ctx.OutboxEvents.Add(
+                new OutboxEvent
+                {
+                    EntityType = SyncEntityType.TodoList,
+                    EntityId = i,
+                    Operation = OutboxOperation.Create,
+                    OccurredAt = DateTime.UtcNow.AddSeconds(i),
+                    IdempotencyKey = Guid.NewGuid(),
+                }
+            );
+        }
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions { OutboxBatchSize = 2 }),
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(2, ctx.OutboxEvents.Count(e => e.ProcessedAt != null));
+        Assert.Equal(3, ctx.OutboxEvents.Count(e => e.ProcessedAt == null));
         client.VerifyNoOtherCalls();
     }
 }

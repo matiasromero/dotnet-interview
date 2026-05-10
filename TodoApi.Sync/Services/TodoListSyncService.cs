@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using TodoApi.Sync.Configuration;
 using TodoApi.Sync.Data;
 using TodoApi.Sync.External;
 using TodoApi.Sync.External.Models;
@@ -11,20 +13,21 @@ public class TodoListSyncService : ITodoListSyncService
 {
     private readonly ISyncDbContext _db;
     private readonly IExternalTodoListClient _client;
+    private readonly SyncOptions _syncOptions;
     private readonly ILogger<TodoListSyncService> _logger;
 
     public TodoListSyncService(
         ISyncDbContext db,
         IExternalTodoListClient client,
+        IOptions<SyncOptions> syncOptions,
         ILogger<TodoListSyncService> logger
     )
     {
         _db = db;
         _client = client;
+        _syncOptions = syncOptions.Value;
         _logger = logger;
     }
-
-    private const int OutboxBatchSize = 1000;
 
     public async Task<SyncRunResult> PushTodoListsAsync(CancellationToken cancellationToken)
     {
@@ -45,7 +48,7 @@ public class TodoListSyncService : ITodoListSyncService
         // Phase A: drain outbox events for TodoList (Create / Delete; Update is no-op slice 6).
         var events = await _db.GetPendingOutboxEventsAsync(
             SyncEntityType.TodoList,
-            OutboxBatchSize,
+            _syncOptions.OutboxBatchSize,
             cancellationToken
         );
         foreach (var evt in events)
