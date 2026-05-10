@@ -112,7 +112,12 @@ For design decisions, edge cases, and assumptions see
 challenge. The single-page synthesis (capability matrix, configuration
 cheat-sheet, failure modes, runbook, frozen limitations) lives at
 [Sync v1 Closeout](./NOTES.md#sync-v1-closeout); use it as the operational
-entry point. Live state of the engine is exposed at
+entry point. The analysis of intentional cuts (multi-instance horizontal
+scaling, push-side PATCH, mirror-policy alternatives, etc.) lives at
+[Out of Scope & What It Would Take](./NOTES.md#out-of-scope--what-it-would-take)
+— each item follows a six-header template (status quo · dimensions touched ·
+options · operational implications · test strategy · decision criteria). Live
+state of the engine is exposed at
 [`GET /api/sync/status`](#observability) — last run per `(entity, direction)`
 pair, pending outbox count, and the active configuration.
 
@@ -365,6 +370,17 @@ cleanup, and the provider-aware bulk-delete helper shipped in Slice 7.
   — *SignalR over Outbox — how OutboxEvents become live UI updates.* Vertical
   flow with tick boundary and Y-split: hub, broadcaster, hosted service, and
   why the broadcaster never touches `ProcessedAt`.
+- [`diagrams/sync-tick-lifecycle.html`](./diagrams/sync-tick-lifecycle.html)
+  — *Sync tick lifecycle — the 5 phases of the BackgroundService.* Vertical
+  flow of push lists → push items → pull lists → pull items → retention purge
+  with isolated try/catch boundaries and a one-snippet pseudocode of
+  `ExecuteAsync`.
+- [`diagrams/lww-decision-tree.html`](./diagrams/lww-decision-tree.html)
+  — *LWW reconciliation decision tree — how each external entity is matched,
+  adopted, or created locally.* Y-split branching on mapping presence, on
+  whether both sides changed since the last snapshot, and on `source_id`
+  parseability — with the tie-break rule and the three pre-conditions that
+  break it.
 - [`diagrams/STYLE.md`](./diagrams/STYLE.md) — visual system ("Terminal
   Schematic") and conventions for any new HTML or diagram added under
   `diagrams/`. New visual artifacts should follow this guide.

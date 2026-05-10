@@ -280,14 +280,14 @@ Status endpoint (`GET /api/sync/status`) surfaces last run per (entity × direct
 
 These are intentional cuts. Each has a known "what would unfreeze it":
 
-| Limitation | What would unfreeze it |
-|---|---|
-| Locally-new `TodoListItem` in already-pushed list does **not** propagate to external | External adds `POST /todolists/{listId}/todoitems` (formal suggestion in Areas for Improvement) |
-| Re-parenting items between lists is unsupported | Both local DTO and external contract would need to expose mutable `TodoListId` |
-| Single-instance assumption (one host running the BackgroundService) | Distributed leader election (Redis lock, Postgres advisory lock, etc.) or outbox partitioning by host |
-| Mirror policy on external delete (local edits lost silently) | Product decision to preserve local with conflict UI; or external exposing tombstone/restore endpoints |
-| `OutboxBatchSize <= 0` (negative) is undefined behavior | `IValidateOptions<SyncOptions>` fail-fast (slice 8+ backlog) |
-| Push-side `PATCH` of `TodoList.Update` is a no-op (only pull-side handles the asymmetry) | Slice 9 backlog: design race semantics vs. pull-side PATCH first, then implement |
+| Limitation | What would unfreeze it | Detail |
+|---|---|---|
+| Locally-new `TodoListItem` in already-pushed list does **not** propagate to external | External adds `POST /todolists/{listId}/todoitems` (formal suggestion in Areas for Improvement) | [→ §06](#06-contract-bound-limitations) |
+| Re-parenting items between lists is unsupported | Both local DTO and external contract would need to expose mutable `TodoListId` | [→ §06](#06-contract-bound-limitations) |
+| Single-instance assumption (one host running the BackgroundService) | Distributed leader election (Redis lock, Postgres advisory lock, etc.) or outbox partitioning by host | [→ §01](#01-multi-instance-horizontal-scaling) |
+| Mirror policy on external delete (local edits lost silently) | Product decision to preserve local with conflict UI; or external exposing tombstone/restore endpoints | [→ §03](#03-mirror-policy-alternatives) |
+| `OutboxBatchSize <= 0` (negative) is undefined behavior | `IValidateOptions<SyncOptions>` fail-fast (slice 8+ backlog) | [→ §07](#07-ivalidateoptionssyncoptions) |
+| Push-side `PATCH` of `TodoList.Update` is a no-op (only pull-side handles the asymmetry) | Slice 9 backlog: design race semantics vs. pull-side PATCH first, then implement | [→ §02](#02-push-side-patch-for-todolistupdate-events) |
 
 ### What's documented but not implemented (acceptance, no test)
 
@@ -300,6 +300,247 @@ These edge cases in `## Edge Cases` are marked `[ ]` — accepted because the co
 - External does not preserve `source_id` literally (assumption documented).
 - Race between push-side outbox `Update` event and pull-side PATCH of the same item (extra round-trip, idempotent end state).
 - `Take(-1)` for `OutboxBatchSize` (LINQ-undefined; covered by validator backlog above).
+
+---
+
+## Out of Scope & What It Would Take
+
+This section expands [Frozen limitations (v1)](#frozen-limitations-v1) by explaining, for each cut, **what dimensions an implementation would touch, what technical options exist, what tradeoffs each carries, and how it would be tested**. It is not an execution plan — it is the prior analysis that would prevent deciding badly under pressure if v2 happened.
+
+| # | Topic | Depth | Driver |
+|---|---|---|---|
+| §01 | [Multi-instance horizontal scaling](#01-multi-instance-horizontal-scaling) | High | Hard scaling cap of single-host assumption |
+| §02 | [Push-side PATCH for `TodoList.Update` events](#02-push-side-patch-for-todolistupdate-events) | Medium | Asymmetry between push and pull update paths |
+| §03 | [Mirror-policy alternatives](#03-mirror-policy-alternatives) | Medium | Product decision: silent local edit loss |
+| §04 | [Bounded concurrency on outbox drain](#04-bounded-concurrency-on-outbox-drain) | Medium | Throughput when backlog spikes |
+| §05 | [`TimeProvider` / `IClock` cross-cutting](#05-timeprovider--iclock-cross-cutting) | Medium | Deterministic LWW tests + clock drift hygiene |
+| §06 | [Contract-bound limitations](#06-contract-bound-limitations) | Low | External API contract gaps |
+| §07 | [`IValidateOptions<SyncOptions>`](#07-ivalidateoptionssyncoptions) | Low | Hardening |
+| §08 | [`OutboxEvent.Payload` usage](#08-outboxeventpayload-usage) | Low | Snapshot replay for create-deleted-mid-flight |
+| §09 | [Telemetry / metrics](#09-telemetry--metrics) | Low | Operability beyond structured logs |
+| §10 | [`SyncRunResult.Pushed` rename → `Processed`](#10-syncrunresultpushed-rename--processed) | Low | Naming hygiene |
+
+Each sub-section follows the same six-header template: **Status quo · Dimensions touched · Options · Operational implications · Test strategy · Decision criteria**.
+
+---
+
+### 01. Multi-instance horizontal scaling
+
+**Status quo.** Exactly one process runs `SyncBackgroundService` and `OutboxBroadcastService`. Neither uses a distributed lock or leader election. The assumption is documented in `## Assumptions` (single-instance) and as an Edge Case (concurrent execution from two API hosts). With two hosts the sync ticks would step on each other: the unique index on `SyncMappings(EntityType, LocalId)` prevents corruption but the second host loses with an unhandled `DbUpdateException`. The broadcaster's in-memory cursor would also drift between hosts.
+
+**Dimensions touched.** Five sub-problems, each independently decidable:
+
+**(C1) Coordination of `SyncBackgroundService`.** Pick one of:
+
+| Strategy | How it works | Pros | Cons |
+|---|---|---|---|
+| **SqlServer `sp_getapplock`** *(recommended for this stack)* | `EXEC sp_getapplock @Resource='sync-tick', @LockMode='Exclusive', @LockTimeout=0` at tick start; release at tick end | Reuses the existing transactional backend; clear "session-scoped" semantics; zero infra additions | Requires raw SQL via `DbContext.Database.ExecuteSqlRawAsync`; SqlServer-specific |
+| **Redis Redlock** | `SET key NX PX <ttl>` with TTL > tick duration | Mature .NET library (`RedLock.net`); fast-fail on contention | New infra (Redis); Kleppmann's well-known critique applies — must commit to TTL and (ideally) fencing tokens |
+| **Kubernetes Lease** | `coordination.k8s.io/Lease` resource via a sidecar or `LeaderElector` library | Native if already on k8s; no extra infra | Couples runtime to k8s; needs RBAC; not portable to VM/bare-metal |
+| **Outbox partitioning** | Each host claims `OutboxEvents.Id MOD N == hostIndex` | Linearly parallelizable; no leader | Needs stable host-index assignment (another coordination primitive); legacy Phase B anti-join becomes ambiguous (who owns the unmapped backfill?) |
+
+**(C2) `OutboxBroadcastService` fan-out.** Three sub-problems that the doc must keep separate, because each can be solved independently:
+
+- **(a) SignalR backplane.** Without one, a client connected to host A never sees events published by host B. Solution: `Microsoft.AspNetCore.SignalR.StackExchangeRedis` — one DI line: `services.AddSignalR().AddStackExchangeRedis(redisConn)`. Cost: a Redis dependency to monitor (drop rate, latency).
+- **(b) Cursor strategy.** Today the cursor is `MAX(OutboxEvents.Id)` in process memory. With N broadcasters: **(i)** shared cursor in Redis (race on advance); **(ii)** per-host cursor + client-side dedupe (simpler server, deduper cost on the client — note the ring-buffer is **already** documented in `docs/realtime-frontend-integration.md` as the React handoff, so this is the path of least resistance); **(iii)** partition the outbox by host (compatible with C1's "outbox partitioning" option).
+- **(c) Cross-instance dedupe.** With the Redis backplane SignalR replicates broadcasts but does not dedupe by `eventId`. If two broadcasters publish the same event, clients receive two notifications with identical payloads. Mitigation: the existing client ring-buffer of recent `eventId`s already in `docs/realtime-frontend-integration.md` covers this without server-side change.
+
+**(C3) Outbox writes with N hosts — race conditions.** `OutboxEvents.IdempotencyKey` is unique → it protects against double-publishing the same intent. It does **not** protect two hosts from pushing the same `TodoList` in parallel: both call POST, both receive different `ExternalId`s, and the second insert into `SyncMappings` fails with `DbUpdateException` on the unique index. Two mitigations, additive:
+
+- Pessimistic: solve via C1 (only one host runs the tick at a time).
+- Optimistic: keep C1 best-effort and `try/catch DbUpdateException` in the dispatch with a "treat as already-mapped, mark event processed" recovery. Costs an extra POST round-trip but no data loss. For a system where C1 is "good enough" (sp_getapplock with timeout 0), the optimistic catch is the safety net for the rare race.
+
+**(C4) Clock drift / `OutboxRetention` cutoff.** Today `DateTime.UtcNow` is read on the host running phase 5. With N hosts whose clocks differ by minutes the cutoff slides. Three options:
+
+- Inject `TimeProvider.System` (aligns naturally with §05) — zero-functional change, opens deterministic tests.
+- Compute the cutoff on the host that holds the C1 lock — single-writer of cleanup → single clock.
+- Use `MAX(OutboxEvents.OccurredAt) - retention` as the cutoff — clock-independent, but opens an attack surface if a future host with a wildly skewed clock writes an `OccurredAt` far in the future.
+
+**(C5) Test strategy in CI without prod infra.** The actual race between hosts can't be reproduced with mocks. Pragmatic approach: a separate integration suite tagged `Multihost`, gated off the default `dotnet test` run, that uses Testcontainers (Redis + SqlServer) and spins up two `WebApplicationFactory<Program>` instances with DI overrides. Run on a nightly or merge-gate CI lane, not on every PR.
+
+**Options (top-level recommendation).** No single answer fits all stacks. For SqlServer-only deployments: **(C1) sp_getapplock + (C2) SignalR Redis backplane + (b) per-host cursor with client dedupe + (C3) optimistic catch as safety net + (C4) inject `TimeProvider` + (C5) Testcontainers-based Multihost suite.** For k8s-native deployments substitute (C1) with the k8s Lease library and the rest stays.
+
+**Operational implications.** New monitoring surface: lock contention rate (C1), backplane drop rate and latency (C2a), SignalR reconnect storms after a leader transition (C2b), `DbUpdateException` recovery counter (C3). Failover behavior: when the leader host dies, expect a gap of up to one tick (≤60 s by default) before the next host acquires the lock. Acceptable because the sync is already eventually consistent.
+
+**Test strategy.** Unit test the C1 wrapper (`IDistributedLock.AcquireAsync` interface) with both a real backend (Testcontainers SqlServer with `sp_getapplock`) and a `NoopLock` for the single-instance default. Unit test the C3 optimistic catch with a deliberate duplicate insert. Multi-host integration covered in C5.
+
+**Decision criteria.** Move out of "out of scope" when **any** of the following holds: production runs more than one host, the average tick duration exceeds 30 s (so a stuck tick blocks the next), or the operator needs zero-downtime deploys (rolling restart with two pods overlap by definition).
+
+---
+
+### 02. Push-side PATCH for `TodoList.Update` events
+
+**Status quo.** When `TodoListService.UpdateAsync` runs, an `OutboxEvent` of type `Update` is written. The push phase **marks it processed without doing anything** — the comment in `TodoListSyncService` is explicit: "PATCH for `TodoList.Update` is the pull side's responsibility". The pull side handles list-name divergence via LWW reconciliation. Documented in Frozen Limitations.
+
+**Dimensions touched.** `TodoListSyncService.DispatchOutboxUpdateAsync` (a no-op branch for lists today, real PATCH for items). Adding a real PATCH would mean: external client call (`UpdateTodoListAsync` already exists), update `LocalUpdatedAtAtSync` and `ExternalUpdatedAtAtSync` snapshots on the mapping, decide what happens if the pull-side then sees `local newer than external` and tries to PATCH again the same tick.
+
+**Options.** Three:
+
+- **Add the PATCH, keep the pull-side PATCH unchanged.** Both can fire in the same tick. Second PATCH is a no-op (same state) but burns a round-trip. Already documented as Edge Case (race between push-side Update and pull-side PATCH).
+- **Add the PATCH, suppress the pull-side PATCH** when an outbox `Update` event for the same entity is pending. Adds a query-per-pull-entity (`PendingOutboxFor(entityId)`) — correctness gain at minor cost.
+- **Status quo + tighten the pull-side PATCH.** Today is acceptable; the slice 5 hardening proved it self-heals on the next tick.
+
+**Operational implications.** With option 1, expect ~2× PATCH count per tick when an entity has a pending Update event AND the LWW evaluates `local newer`. With option 2, expect a small CPU cost on every pull entity (an `EXISTS` query against the outbox).
+
+**Test strategy.** Unit tests already cover the pull-side PATCH and the no-op branch. New tests: outbox `Update` event with mapping and external state stale → PATCH happens once, mapping snapshots updated; race scenario where an Update event AND pull-side detects local-newer → assert exactly one PATCH per option chosen.
+
+**Decision criteria.** Move out of scope when metrics show enough push-side Update events per tick to justify the work. Today the count is observed-zero in dev — there's no signal.
+
+---
+
+### 03. Mirror-policy alternatives
+
+**Status quo.** When the pull detects an external `TodoList` or `TodoListItem` has disappeared (absent from `GET /todolists`), the local is cascade-deleted. If the local had been edited after the last sync (`LocalUpdatedAt > LocalUpdatedAtAtSync`), a structured Warning logs the lost change before the delete. No persistence of the pre-delete state, no user notification. Documented in Frozen Limitations (mirror policy on external delete).
+
+**Dimensions touched.** `TodoListSyncService.ApplyExternalDeleteListAsync` (and the item analogue), the structured Warning emission, and any new persistence (tombstone columns or a `DeletedTodoLists` table). Cross-cuts the API contract because if a tombstone is preserved, `GET /todolists` either filters it out (silent) or surfaces it (new fields).
+
+**Options.** Three:
+
+- **Tombstone preservation.** Add `IsDeleted` + `DeletedAt` columns; soft-delete instead of hard-delete; the API filters them out by default with an opt-in `?includeDeleted=true`. The user can recover deletions via a "trash" UI. Requires app-side support and migration.
+- **Conflict UI delegation.** Don't delete — write a `SyncConflict` row and surface it via a new endpoint (`GET /api/sync/conflicts`). The user resolves manually (keep local, accept remote delete). Highest fidelity, highest UX cost.
+- **Restore-on-reappearance.** If the same external `id` (or the same `source_id`) reappears in a later GET, undelete the local. Cheap to add but requires the `IsDeleted` column.
+
+**Operational implications.** Tombstones grow the table monotonically — needs a retention policy (analogous to outbox retention). Conflict UI implies an unbounded backlog if the user doesn't resolve. Restore-on-reappearance assumes external doesn't re-use IDs after delete (a contract claim worth adding to `## Assumptions`).
+
+**Test strategy.** Snapshot test the structured Warning emitted today (it's the formal record of the lost edit). Integration test the new flow under each option: external disappears → local edits visible → resolution applied. The existing `WireMock` setup already supports this.
+
+**Decision criteria.** Move out of scope when product confirms that silent loss is unacceptable (today it's accepted with the Warning as audit trail).
+
+---
+
+### 04. Bounded concurrency on outbox drain
+
+**Status quo.** Phase A drains outbox events one-by-one in a serial `foreach` loop within `TodoListSyncService.PushTodoListsAsync` (and the item analogue). Each event makes one external call. Throughput is `tick_duration / (avg_external_latency × event_count)`. With a 60s tick, 200ms p50 latency, and a 1000-event backlog, the engine processes ~300 events/tick → 3.3 ticks to drain. Acceptable for current volumes, painful for spikes.
+
+**Dimensions touched.** The drain loop, `IExternalTodoListClient` (which already uses Polly with circuit breaker), and the order semantics: today FIFO per `OccurredAt` is a *property of the loop*, not a contract — concurrent dispatch breaks it.
+
+**Options.** Three:
+
+- **`System.Threading.Channels.BoundedChannel<OutboxEventRecord>`** with paginated producer (keyset by `Id`) + N consumer tasks (configurable, default 8) + Polly bulkhead per consumer. Already listed in `## Areas for Improvement` as the slice 8 candidate. Loses strict FIFO **across entities** but preserves it per-entity if the partition key is `(EntityType, EntityId)`.
+- **`Parallel.ForEachAsync` over batches.** Simpler, no channel. Bounds via `MaxDegreeOfParallelism`. No backpressure if consumers stall — the producer keeps reading.
+- **Status quo + larger `OutboxBatchSize`.** Workaround that scales linearly with memory but doesn't reduce wall-clock per tick.
+
+**Operational implications.** New config: `Sync:OutboxConsumerConcurrency` (default 1 for backwards compat). Per-entity FIFO must be advertised explicitly: cross-entity ordering is no longer guaranteed and consumers downstream must not assume it. The circuit breaker still protects the external — concurrency above the breaker's threshold just hits "half-open" faster.
+
+**Test strategy.** Stress test with a synthetic backlog of N>1000 events → assert tick wall time decreases linearly with concurrency until the external becomes the bottleneck. Order test: emit a Create then an Update for the same entity, assert dispatch order (Create before Update) regardless of consumer assignment.
+
+**Decision criteria.** Move out of scope when an observed backlog exceeds 2× the single-tick capacity at p95 latency. Until then, the simple loop is correct and trivial to reason about.
+
+---
+
+### 05. TimeProvider / IClock cross-cutting
+
+**Status quo.** `DateTime.UtcNow` is called directly in `TodoListService`, `TodoListItemService`, `TodoListSyncService`, `TodoListItemSyncService`, and `SyncBackgroundService` (for the phase 5 retention cutoff). This forced one ugly `Thread.Sleep(1)` in the slice 5 hardening to write a strict-monotonic test on `UpdateAsync`. Listed in `## Areas for Improvement` as the slice-X+ candidate.
+
+**Dimensions touched.** Every site that reads "now". The .NET 8 `TimeProvider` abstraction is the obvious pick — it ships in the BCL and has a `FakeTimeProvider` companion in `Microsoft.Extensions.TimeProvider.Testing`.
+
+**Options.** Two real ones:
+
+- **`TimeProvider.System` injected via DI**, all `DateTime.UtcNow` replaced by `_timeProvider.GetUtcNow().UtcDateTime`. Touches ~12 call sites; each is a one-line change. Tests get `FakeTimeProvider` and stop sleeping.
+- **Roll a custom `IClock`** with `UtcNow` only. Cheaper to wire than `TimeProvider`'s richer surface, but reinvents what the BCL already gives us. Not recommended.
+
+**Operational implications.** Zero behavioral change in production (`TimeProvider.System` reads the same clock). Test runtimes drop because no more `Thread.Sleep`. The `OutboxRetention` cutoff in C4 of §01 starts to compose cleanly with multi-host clock alignment.
+
+**Test strategy.** Replace the `Thread.Sleep(1)` in `TodoListItemServiceTests.UpdateAsync_RowExists_BumpsUpdatedAt` with a `FakeTimeProvider.Advance(TimeSpan.FromMilliseconds(1))`. Add a deterministic LWW tie test that's currently not writable (exact `==` on `UpdatedAt` between local and external).
+
+**Decision criteria.** Move out of scope when a developer needs to write a deterministic LWW test or when §01.C4 is being implemented (the alignment becomes structural).
+
+---
+
+### 06. Contract-bound limitations
+
+Three coupled cuts that are blocked on the **external API contract**, not on local code: (a) locally-new `TodoListItem` in already-pushed list, (b) re-parenting an item between lists, (c) `source_id` literal preservation.
+
+**Status quo.** (a) Logs a structured Warning and skips — the external lacks `POST /todolists/{listId}/todoitems`. (b) The `UpdateTodoListItem` DTO doesn't expose `TodoListId`; the external `UpdateTodoItemBody` doesn't either. (c) Slice 2 adoption depends on the external echoing `source_id` byte-for-byte; if it normalizes, adoption fails and locals duplicate on next pull.
+
+**Dimensions touched.** External API contract. Locally there's nothing to implement until the upstream changes. The formal upstream suggestion for (a) is already in `## Areas for Improvement`.
+
+**Options.** None local. Possible upstream changes:
+
+- (a) Add `POST /todolists/{listId}/todoitems` with a body matching the existing item shape.
+- (b) Allow `PATCH /todolists/{listId}/todoitems/{itemId}` to accept `parent_list_id` (or equivalent).
+- (c) Document `source_id` preservation as a contract guarantee — currently inferred, not promised.
+
+**Operational implications.** When unblocked, item creation in an already-mapped list propagates instead of warn-skip; re-parenting gets a defined policy; `source_id` preservation becomes an SLA, not a hopeful assumption.
+
+**Test strategy.** Each unblocking would land its own slice with TDD per the project convention (xUnit + WireMock + InMemory).
+
+**Decision criteria.** Out of scope until the upstream changes the contract (the suggestion has been formally raised).
+
+---
+
+### 07. IValidateOptions<SyncOptions>
+
+**Status quo.** `SyncOptions` has sane defaults but no validation. `Sync:Interval=0`, `OutboxBatchSize=-1`, `OutboxRetention=-2.00:00:00` would all start the host without an error. Today most are caught by guarded code paths (`OutboxBatchSize<=0` → no-op + Phase B fallback, `OutboxRetention<=0` → skip phase 5) but the failure mode is silent. Listed in `## Areas for Improvement`.
+
+**Dimensions touched.** A new class `SyncOptionsValidator : IValidateOptions<SyncOptions>` registered in `SyncServiceCollectionExtensions`. Same for `ExternalApiOptions` if that gets the same treatment.
+
+**Options.** Single sensible path: implement `IValidateOptions<SyncOptions>` with `ValidateDataAnnotations` for trivial bounds (`[Range]` on the integers) plus custom logic for the timespans.
+
+**Operational implications.** Bad config now fails the host at startup with a descriptive message instead of starting and silently degrading. Slightly slower startup on misconfigured environments (which is the right tradeoff).
+
+**Test strategy.** Unit test the validator directly (`ValidateOptionsResult.Failed("...")` on each invalid case).
+
+**Decision criteria.** Move out of scope after the first prod misconfig incident — the cost of writing it is minutes; the cost of not having it is variable.
+
+---
+
+### 08. OutboxEvent.Payload usage
+
+**Status quo.** The `Payload` column exists on `OutboxEvents` but is never written or read. It was scaffolded with the intent of carrying a serialized snapshot of the entity at emit time.
+
+**Dimensions touched.** `TodoListService.CreateAsync`/`UpdateAsync`/`DeleteAsync` would `JsonSerializer.Serialize` the entity into `Payload` at write time. The push dispatch would `JsonSerializer.Deserialize<T>(Payload)` on re-drain when the local entity has been deleted between emit and drain — today the dispatch marks the event processed without action; with `Payload` it could still POST with the historical snapshot.
+
+**Options.** Three:
+
+- **Snapshot every Create event** (the case where it matters). Update events can re-read the entity if it still exists.
+- **Snapshot every event regardless** (uniform path). Simpler, costs storage.
+- **Status quo** (don't populate). Cheap; the "create + delete in the same tick" is microscopic per Edge Cases.
+
+**Operational implications.** Storage growth on every emit (~500 bytes per event). Combined with `OutboxRetention=7d` and 1000 events/day → ~3 MB/year. Negligible.
+
+**Test strategy.** Round-trip: emit Create → delete local → drain → assert POST happens with the historical name.
+
+**Decision criteria.** Move out of scope when the "create + delete in the same tick" race becomes observable (today: zero occurrences in dev).
+
+---
+
+### 09. Telemetry / metrics
+
+**Status quo.** The engine exposes structured logs only. No counters, no traces, no histograms. `## Areas for Improvement` lists the gap.
+
+**Dimensions touched.** All the hosted services and the `TodoListSyncService`/`TodoListItemSyncService`. Plus a metric export endpoint or sidecar.
+
+**Options.** Three exporter targets, mostly orthogonal:
+
+- **OpenTelemetry exporter** (`OpenTelemetry.Extensions.Hosting` + an OTLP exporter) — standards-aligned, vendor-neutral, integrates with Grafana/Honeycomb/etc.
+- **Prometheus client** (`prometheus-net.AspNetCore`) — adds a `/metrics` endpoint, pull-based, simple.
+- **Application Insights** — vendor lock-in but turn-key on Azure.
+
+**Operational implications.** Adds a dependency surface and a monitoring contract (alert thresholds, dashboards). The structured logs already in place become a complement, not the primary signal.
+
+**Test strategy.** Smoke test that the metrics endpoint returns non-empty after a tick. Beyond that, telemetry is operational, not unit-testable.
+
+**Decision criteria.** Move out of scope when the operator needs an objective dashboard (today the runbook defaults to `GET /api/sync/status` + log filters).
+
+---
+
+### 10. SyncRunResult.Pushed rename → Processed
+
+**Status quo.** `SyncRunResult.Pushed` is the field name used to count successfully-processed entries on **both** push and pull operations. The semantics are "items processed successfully (in either direction)". The name is a slice-2 holdover that became misleading once pull was implemented and dramatically more so once delete-from-pull was added in slice 4. Listed in `## Areas for Improvement`.
+
+**Dimensions touched.** The struct field, every call site (~36 sync tests + the `SyncStatusController` projection that reads it), and the response shape of `POST /api/sync/run` and `GET /api/sync/status` (the JSON property name changes).
+
+**Options.** Two:
+
+- **Hard rename.** `Pushed` → `Processed`, update tests, update the API JSON property. Breaks any external consumer of the API JSON.
+- **Soft rename.** Add `Processed` alongside `Pushed`, deprecate `Pushed`, remove in a later slice. Verbose but contract-safe.
+
+**Operational implications.** With a hard rename, any frontend or operator script consuming the sync run JSON breaks. With a soft rename, the JSON has both fields temporarily.
+
+**Test strategy.** Mechanical: replace and re-run `dotnet test`. Field rename is local to the codebase.
+
+**Decision criteria.** Move out of scope when the next contract-breaking change is on the table for an unrelated reason — bundle the rename with that to amortize the breakage.
 
 ---
 
@@ -570,3 +811,18 @@ _Chronological, append-only. One entry per closed slice or per loaded decision w
   - **Hub auth.** None today. If the API gains auth, the hub inherits it via `[Authorize]` + `MapHub` ordering; per-user filtering can use SignalR groups keyed by user id.
   - **Hub metrics.** Connection count, broadcast latency, dropped frames. `GET /api/sync/status` already covers "is the engine producing events"; a future Prometheus exporter could surface "is the broadcaster keeping up" too.
   - **`ChangeNotification.parentEntityId`.** The frontend currently has to refetch all lists to know which list an item belongs to. Adding `parentEntityId` (nullable, populated for `TodoListItem` notifications) would let the client refetch only the affected list. Trivial backend change once the frontend confirms the value.
+
+### 2026-05-10 — Documentation closeout (post-slice cleanup)
+
+- **Decision:** consolidate v1 documentation without adding features. Three changes: (1) new `## Out of Scope & What It Would Take` section in `NOTES.md` with 10 sub-sections under a six-header template (status quo · dimensions touched · options · operational implications · test strategy · decision criteria), with §01 *Multi-instance horizontal scaling* at full depth as the worked example of "what would it take" reasoning; (2) two new diagrams under `diagrams/` following `STYLE.md` — `sync-tick-lifecycle.html` (the 5 phases of the BackgroundService timeline) and `lww-decision-tree.html` (per-entity reconciliation branching); (3) cross-links from the existing `Frozen limitations (v1)` table (added a "Detail" column pointing to each §NN sub-section) and from `README.md` (Sync Engine section + Documentation & Diagrams bullets).
+- **Alternatives discarded:**
+  - **Extend `CHALLENGE.md`.** Frozen upstream contract — not editable per `CLAUDE.md` hard rule.
+  - **Move out-of-scope analysis to a new `docs/out-of-scope.md`.** Breaks the "one formal deliverable" pattern (NOTES.md is the document the reviewer opens). Acceptable only if the section grows beyond ~150 lines, which it doesn't.
+  - **Skip the section because `Frozen limitations` already enumerates the cuts.** That table is one line per cut — sufficient as an executive index, insufficient to communicate the **technical dimensions, options, and tradeoffs** that signal architectural visibility. The new section is the depth that the table lacks; the table now cross-links into it.
+  - **Add a third diagram (multi-instance topology).** High signaling value but requires introducing an "out-of-scope badge" pattern to `STYLE.md` — extra work for marginal extra clarity once §01 already covers the ground in prose. Deferred.
+  - **Mark this as Slice 10.** This is consolidation, not new capability — labelling it as a slice would distort the cadence (every prior slice closed a code-bearing feature). Recorded as a post-slice cleanup entry.
+- **Why:** a senior reviewer typically evaluates not only what was built but also what was **intentionally not built and why**. Frozen limitations alone leaves the reviewer to infer tradeoffs; the new section makes the reasoning explicit and the criteria for revisiting each cut concrete. The diagrams condense temporally-dispersed prose (the 5 phases of the tick, the LWW branching) into images that are absorbed in 60 seconds — high pedagogical density without adding code.
+- **New assumptions:** none. The new section reaffirms existing assumptions (single-host, NTP-aligned clocks, `source_id` literal preservation) and makes their resolution criteria explicit.
+- **Debt / follow-ups:**
+  - When §01 (multi-instance) is implemented, this entry is superseded by the slice that closes it — at that point, mark the §01 sub-section as `~~Closed in slice N~~` and add a `**Supersedes:** 2026-05-10 Documentation closeout` reference in the new slice's entry.
+  - Same pattern applies to §02–§10 individually as they unfreeze.
