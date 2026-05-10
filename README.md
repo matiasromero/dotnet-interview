@@ -3,8 +3,11 @@
 [![Open in Coder](https://dev.crunchloop.io/open-in-coder.svg)](https://dev.crunchloop.io/templates/fly-containers/workspace?param.Git%20Repository=git@github.com:crunchloop/dotnet-interview.git)
 
 A Todo List API built in .NET 8 with a bidirectional sync engine that mirrors local
-state with an external Todo API. The API is the senior-engineer challenge from
-Crunchloop, layered on top of the original full-stack interview project.
+state with an external Todo API. Local mutations are captured transactionally via
+an Outbox table; a background service runs four push/pull phases per tick with
+last-write-wins reconciliation, `source_id`-based orphan adoption, and
+mirror-policy cascade-delete. The implementation is the senior-engineer challenge
+from Crunchloop, layered on top of the original full-stack interview project.
 
 ## Architecture
 
@@ -17,6 +20,32 @@ The solution has three projects:
 - **`TodoApi.Tests`** — xUnit test suite. Unit tests use EF InMemory and direct
   service instantiation; integration tests use `WebApplicationFactory<Program>`
   + `WireMock.Net`.
+
+The application schema and the sync-engine bookkeeping are documented under
+[Domain Model](#domain-model).
+
+## Domain Model
+
+Two layers: the application entities a user creates, and the sync-engine
+bookkeeping the engine maintains around them.
+
+**Application entities**
+
+| Entity | Persisted in | Purpose |
+| --- | --- | --- |
+| `TodoList` | `TodoLists` | Top-level list. Holds `Name`, `UpdatedAt`. 1 → N items, cascade delete. |
+| `TodoListItem` | `TodoListItems` | List entry. Holds `Description`, `IsCompleted`, `UpdatedAt`, FK `TodoListId`. |
+
+**Sync engine entities**
+
+| Entity | Persisted in | Purpose |
+| --- | --- | --- |
+| `SyncMapping` | `SyncMappings` | Bridge between local id and external id, per entity type. Stores snapshots of `LocalUpdatedAtAtSync` / `ExternalUpdatedAtAtSync` to drive last-write-wins reconciliation, plus a unique `IdempotencyKey`. |
+| `OutboxEvent` | `OutboxEvents` | Reliable change-capture record written transactionally on local Create/Update/Delete. The push phases drain it in `OccurredAt` order. |
+| `SyncRun` | `SyncRuns` | Audit row written per phase per tick: `EntityType`, `Direction`, counters, `Status` (`Running` / `Succeeded` / `Failed` / `Partial`). |
+
+For the rationale behind each table see
+[Key Design Decisions](./NOTES.md#key-design-decisions) in `NOTES.md`.
 
 ## Database
 
@@ -50,24 +79,50 @@ The TodoApi syncs bidirectionally with an external Todo API. The engine lives
 as a separate class library (`TodoApi.Sync`) referenced from `TodoApi`, with
 three layers:
 
-1. **Trigger** — `SyncBackgroundService` runs each `Sync:Interval` (default 60s).
-   Each tick runs four phases under independent try/catch blocks: list push →
-   item push → list pull → item pull.
-2. **Logic** — `TodoListSyncService` and `TodoListItemSyncService` orchestrate
-   push (local → external) and pull (external → local) with last-write-wins
-   reconciliation, source_id-based adoption of orphans, and mirror-policy
-   cascade delete when external entries disappear.
+1. **Trigger** — `SyncBackgroundService` runs each `Sync:Interval` (default 60s)
+   after `Sync:StartupDelay`. Per tick, four phases run in fixed order under
+   independent try/catch blocks: **list push → item push → list pull → item
+   pull**. A failure in one phase is logged and the next phase still runs.
+2. **Logic** — `TodoListSyncService` and `TodoListItemSyncService` implement
+   push and pull:
+   - **Push** drains `OutboxEvents` (Create / Update / Delete) in `OccurredAt`
+     order, calls the external client, and records a `SyncMapping` on success.
+     A legacy fallback path still handles unmapped locals and orphaned
+     mappings as a safety net.
+   - **Pull** fetches the external state and reconciles each external entity
+     against its local mapping: **last-write-wins** when both sides changed
+     (tie goes to external), apply-remote when only the external moved,
+     push-local when only the local moved. Externals without a mapping but
+     whose `source_id` matches an unmapped local are **adopted** — a new
+     mapping is created instead of a duplicate. A second pass detects
+     externals that disappeared and applies **mirror-policy cascade-delete**
+     locally; list deletes cascade to items and their mappings.
 3. **Client** — `IExternalTodoListClient` is a typed `HttpClient` registered via
-   `IHttpClientFactory` with a Polly v8 resilience pipeline (retry + circuit
-   breaker + per-attempt timeout). Requests use snake_case JSON.
+   `IHttpClientFactory` with a Polly v8 resilience pipeline (retry on
+   5xx/408/429/`HttpRequestException` + circuit breaker + per-attempt timeout).
+   Requests use snake_case JSON and pass an `Idempotency-Key` header sourced
+   from `SyncMapping.IdempotencyKey`.
 
-Persistence: two new tables (`SyncMappings`, `SyncRuns`) live in `TodoContext`,
-exposed to the sync project through `ISyncDbContext` to avoid circular
-references with `TodoApi.Models`.
+Persistence: three sync tables (`SyncMappings`, `OutboxEvents`, `SyncRuns`) live
+in `TodoContext`, exposed to `TodoApi.Sync` through `ISyncDbContext` to avoid a
+circular reference with `TodoApi.Models`.
 
 For design decisions, edge cases, and assumptions see
 [`NOTES.md`](./NOTES.md) — the formal documentation deliverable for the
 challenge.
+
+### Outbox Pattern
+
+Every `TodoListService` and `TodoListItemService` mutation writes an
+`OutboxEvent` row in the **same EF transaction** as the entity change. The push
+phases drain pending events in `OccurredAt` order, mark them processed, and
+only then move on. This is what makes a local change durable across
+background-service crashes and gives push idempotency a transactional
+foundation.
+
+See [`diagrams/outbox-syncmapping-flow.html`](./diagrams/outbox-syncmapping-flow.html)
+for a visual walk-through of how `OutboxEvent` and `SyncMapping` interact
+across a tick.
 
 ### Configuration
 
@@ -191,9 +246,40 @@ Restore tools first if needed: `dotnet tool restore`.
 
 ## Areas of Improvement
 
-The active backlog (outbox pattern, telemetry, multi-host concurrency,
-`TimeProvider` abstraction, etc.) lives in
+The active backlog (telemetry, multi-host concurrency, `TimeProvider`
+abstraction, outbox retention + bounded concurrency, etc.) lives in
 [`NOTES.md` Areas for Improvement](./NOTES.md#areas-for-improvement).
+The Outbox pattern itself shipped in Slice 6.
+
+## Documentation & Diagrams
+
+**Reference documents**
+
+- [`CHALLENGE.md`](./CHALLENGE.md) — frozen upstream specification of the
+  senior challenge. Source of truth for required behaviour.
+- [`NOTES.md`](./NOTES.md) — design decisions, edge cases, assumptions, and the
+  decision log. Sections worth bookmarking:
+  [High-Level Overview](./NOTES.md#high-level-overview) ·
+  [Key Design Decisions](./NOTES.md#key-design-decisions) ·
+  [Resilience and Error Handling](./NOTES.md#resilience-and-error-handling) ·
+  [Edge Cases](./NOTES.md#edge-cases) ·
+  [Assumptions](./NOTES.md#assumptions) ·
+  [Decision Log](./NOTES.md#decision-log).
+- [`assets/external-api.yaml`](./assets/external-api.yaml) — OpenAPI contract
+  of the external Todo API the sync engine talks to.
+
+**Diagrams** (the [`diagrams/`](./diagrams) folder)
+
+- [`diagrams/outbox-syncmapping-flow.html`](./diagrams/outbox-syncmapping-flow.html)
+  — *OutboxEvent vs SyncMapping — sync engine internals.* Self-contained HTML
+  explainer covering the operational and conceptual relationship between the
+  two tables across a tick.
+- [`diagrams/STYLE.md`](./diagrams/STYLE.md) — visual system ("Terminal
+  Schematic") and conventions for any new HTML or diagram added under
+  `diagrams/`. New visual artifacts should follow this guide.
+
+The `diagrams/` folder is the home for HTML explainers and visual flows. New
+diagrams land there and get linked from this section.
 
 ## Contact
 
