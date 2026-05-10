@@ -1,51 +1,51 @@
 # CLAUDE.md — Crunchloop Senior Challenge
 
-Guía para Claude Code (claude.ai/code) cuando trabaje en este repositorio. Este archivo combina **cómo trabajamos** (workspace) con la **guía táctica de .NET** (commands, arquitectura, testing). Las decisiones técnicas vivas en [`NOTES.md`](./NOTES.md); el contrato del spec en [`CHALLENGE.md`](./CHALLENGE.md).
+Guide for Claude Code (claude.ai/code) when working in this repository. This file combines **how we work** (workspace) with the **.NET tactical guide** (commands, architecture, testing). Live technical decisions are in [`NOTES.md`](./NOTES.md); the spec contract is in [`CHALLENGE.md`](./CHALLENGE.md).
 
-## Qué es este repo
+## What this repo is
 
-- Trabajo del **senior challenge de Crunchloop** (sync bidireccional con una API externa) — repo upstream del spec: <https://github.com/crunchloop/challenge-senior-engineer>.
-- **`./CHALLENGE.md`** — spec congelado, copia del README upstream. **No editar.** Si el upstream cambia, se baja de nuevo y se discute.
-- **`./NOTES.md`** — cuaderno de decisiones y tradeoffs. Append-mostly. Es el deliverable de documentación que pide el spec.
-- La implementación extiende el TodoApi que se construyó para la entrevista .NET previa.
+- Work for the **Crunchloop senior challenge** (bidirectional sync with an external API) — upstream repo of the spec: <https://github.com/crunchloop/challenge-senior-engineer>.
+- **`./CHALLENGE.md`** — frozen spec, copy of the upstream README. **Do not edit.** If the upstream changes, pull it down again and discuss.
+- **`./NOTES.md`** — decision log and tradeoffs. Append-mostly. It is the documentation deliverable required by the spec.
+- The implementation extends the TodoApi built for the previous .NET interview.
 
-## Cómo trabajamos: slice por slice
+## How we work: slice by slice
 
-El spec se desarrolla en **slices** (rebanadas) chicas: una capacidad o un patrón por iteración, no la feature completa de un saque. El roadmap actual de slices vive como propuesta editable al pie de NOTES.md / Decision Log.
+The spec is built out in small **slices**: one capability or one pattern per iteration, not the complete feature in one shot. The current slice roadmap lives as an editable proposal at the bottom of NOTES.md / Decision Log.
 
-Para cada slice:
+For each slice:
 
-**Antes de tocar código**
+**Before touching code**
 
-1. **Releer** la sección relevante de `CHALLENGE.md` y el `Decision Log` de `NOTES.md`. No contradecir decisiones previas sin discutirlo explícitamente con el usuario.
-2. **Verbalizar la intención** antes de prompt'ear o escribir: archivo target, qué patrón se espeja del código existente, qué NO hacemos en este slice. (Ver memoria `feedback_directing_ai`: el usuario prefiere "directing AI" sobre "vibecoding" — prompts dirigidos con restricciones explícitas, no aceptar output ciego.)
-3. Si el slice tiene **≥ 3 pasos no triviales**, invocar el skill `superpowers:writing-plans` y dejar el plan en `/Users/matiasromero/.claude/plans/<slug>.md`. Slices triviales (un archivo, un test) van directo.
-4. Si hay **diseño abierto** (qué librería, qué patrón, qué semántica), invocar `superpowers:brainstorming` antes de proponer implementación.
+1. **Re-read** the relevant section of `CHALLENGE.md` and the `Decision Log` in `NOTES.md`. Do not contradict prior decisions without explicitly discussing it with the user.
+2. **Verbalize the intent** before prompting or writing: target file, which pattern mirrors existing code, what we are NOT doing in this slice. (See memory `feedback_directing_ai`: the user prefers "directing AI" over "vibecoding" — directed prompts with explicit constraints, not blind output acceptance.)
+3. If the slice has **≥ 3 non-trivial steps**, invoke the `superpowers:writing-plans` skill and leave the plan at `/Users/matiasromero/.claude/plans/<slug>.md`. Trivial slices (one file, one test) go straight in.
+4. If there is **open design** (which library, which pattern, which semantics), invoke `superpowers:brainstorming` before proposing implementation.
 
-**Durante la implementación**
+**During implementation**
 
-5. Aplicar **TDD** donde tenga sentido (`superpowers:test-driven-development`). El repo ya tiene patrón claro de xUnit + InMemory documentado abajo; espejarlo.
-6. Cambios chicos y dirigidos: un archivo o una capa por turno. Nada de "feature completa one-shot".
-7. Mostrar el diff explícito y llamar la atención sobre judgment calls: "usé X porque Y, alternativa Z descartada porque…".
+5. Apply **TDD** where it makes sense (`superpowers:test-driven-development`). The repo already has a clear xUnit + InMemory pattern documented below; mirror it.
+6. Small, directed changes: one file or one layer per turn. No "one-shot complete feature".
+7. Show the explicit diff and call out judgment calls: "I used X because Y, alternative Z discarded because…".
 
-**Cuando el slice cierra**
+**When the slice closes**
 
-8. Verificar con evidencia (`superpowers:verification-before-completion`):
-   - `dotnet test` — todos verde.
-   - `dotnet csharpier --check .` — no formatting drift (el CI del repo upstream falla si formatea mal).
-   - Output a la vista antes de declarar éxito.
-9. Apendear al **Decision Log de `NOTES.md`** una entrada con: fecha, slice, decisión, alternativas descartadas, por qué, supuestos nuevos, deuda anotada. Si el slice tocó alguna sección formal (Resilience, Edge Cases, Assumptions), actualizar también esa sección.
-10. Solo después: commit.
+8. Verify with evidence (`superpowers:verification-before-completion`):
+   - `dotnet test` — all green.
+   - `dotnet csharpier --check .` — no formatting drift (the upstream repo's CI fails on bad formatting).
+   - Output visible before declaring success.
+9. Append to the **Decision Log in `NOTES.md`** an entry with: date, slice, decision, alternatives discarded, why, new assumptions, debt noted. If the slice touched any formal section (Resilience, Edge Cases, Assumptions), update that section as well.
+10. Only then: commit.
 
-## Reglas duras
+## Hard rules
 
-- **`CHALLENGE.md` es inmutable.** Es el contrato upstream. No se edita ni siquiera para corregir typos: si está mal, se discute y se documenta el desvío en `NOTES.md`.
-- **`NOTES.md` es append-mostly.** Editar entradas pasadas solo para corregir errores factuales. Cambios de criterio se registran como entrada nueva con `**Supersedes:** YYYY-MM-DD <título>`.
+- **`CHALLENGE.md` is immutable.** It is the upstream contract. Not edited even to fix typos: if it is wrong, discuss and document the deviation in `NOTES.md`.
+- **`NOTES.md` is append-mostly.** Edit past entries only to fix factual errors. Changes of judgment are recorded as a new entry with `**Supersedes:** YYYY-MM-DD <title>`.
 
-## Idioma
+## Language
 
-- Discusión técnica y conceptual: **castellano argentino**.
-- Código, identificadores, comandos, nombres de archivos, mensajes de commit: **inglés natural**.
+- Project documentation (`CLAUDE.md`, `NOTES.md`, `diagrams/*`) and code (identifiers, commands, file names, commit messages): **English**.
+- Conversational discussion with the user: **Argentine Spanish** (user preference).
 
 ## Commands
 
@@ -89,10 +89,14 @@ SQL Server 2022 via the devcontainer (`.devcontainer/docker-compose.yml`). The c
 - A `PopulateDatabaseContext` helper at the top of each test class seeds fixtures with hardcoded IDs (1, 2, 3…) — follow the same shape when adding tests so other readers can scan quickly.
 - The InMemory provider does **not** enforce relational constraints (cascade delete, FK validation), so exercise parent/child semantics through service code, not by relying on the DB to refuse bad writes.
 
-## Skills relevantes (referencia rápida)
+## Visual artifacts (diagrams, HTML explainers)
 
-- `superpowers:brainstorming` — antes de cualquier diseño abierto.
-- `superpowers:writing-plans` — slices con ≥ 3 pasos no triviales.
-- `superpowers:test-driven-development` — implementación.
-- `superpowers:verification-before-completion` — antes de declarar un slice cerrado.
-- `superpowers:executing-plans` — si un slice tiene plan formal y se ejecuta en sesión separada.
+When a diagram, visual flow, or self-contained HTML explainer is requested for project concepts (sync engine, lifecycles, architecture), follow the system defined in [`diagrams/STYLE.md`](./diagrams/STYLE.md): aesthetic **"Terminal Schematic"** (dark CRT, IBM Plex Mono/Sans, amber+cyan palette), reusable patterns (boxes, connectors, tick boundary, Y-split, code snippets) and AI conventions (double TL;DR, heading `> §NN Title`, footer with refs). Living reference: [`diagrams/outbox-syncmapping-flow.html`](./diagrams/outbox-syncmapping-flow.html). If tokens are changed, update `STYLE.md` first, then regenerate.
+
+## Relevant skills (quick reference)
+
+- `superpowers:brainstorming` — before any open design.
+- `superpowers:writing-plans` — slices with ≥ 3 non-trivial steps.
+- `superpowers:test-driven-development` — implementation.
+- `superpowers:verification-before-completion` — before declaring a slice closed.
+- `superpowers:executing-plans` — if a slice has a formal plan and is executed in a separate session.
