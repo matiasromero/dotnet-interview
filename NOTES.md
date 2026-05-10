@@ -159,7 +159,7 @@ Limitation: adoption only works if the server preserved the `source_id` literall
 - [x] **`OutboxRetention <= TimeSpan.Zero` disables the cleanup phase** — log Debug + skip. Test `ExecuteAsync_OutboxRetentionDisabled_SkipsPhase` verifies the strict-mock dbContext is never invoked.
 - [x] **Cleanup on empty outbox table** — returns 0, no error. InMemory path: `ToListAsync()` returns empty list, early return. Relational path: `ExecuteDeleteAsync` issues DELETE with WHERE matching nothing. Test `PurgeProcessedOutboxEventsAsync_EmptyTable_ReturnsZero` covers it.
 - [x] **`OutboxBatchSize=N` with `M > N` pending events** — only the first `N` (FIFO) are drained this tick; the rest in subsequent ticks. Test `PushTodoListsAsync_OutboxBatchSize_RespectsLimit` and `PushTodoListItemsAsync_OutboxBatchSize_RespectsLimit` verify with already-mapped lists / unmapped item events so Phase B's anti-join finds nothing and only Phase A drains.
-- [ ] **`OutboxBatchSize <= 0`** — `Take(0)` returns empty (no events drained); `Take(-1)` undefined per LINQ spec. No formal validator added in slice 7 (`SyncOptions` keeps "sane defaults without DataAnnotations" pattern). Documented invariant: `OutboxBatchSize > 0`. Future mitigation: validator in `SyncOptionsValidator` (already in Areas for Improvement).
+- [x] **`OutboxBatchSize <= 0`** — `Take(0)` returns empty (no events drained); `Take(-1)` undefined per LINQ spec. Slice 8 closed the `=0` boundary with `PushTodoListsAsync_OutboxBatchSizeZero_DrainsNothingAndDoesNotCrash` (Phase A no-op + Phase B legacy fallback covers the rest). Negative values remain undefined per spec; formal `IValidateOptions<SyncOptions>` would close it (still listed in Areas for Improvement).
 - [x] **Cleanup throws mid-tick** — log Error + the 4 sync phases of the tick already finished. Subsequent ticks continue. Test `ExecuteAsync_OutboxRetentionThrows_OtherPhasesUnaffected` verifies all 4 phases fired before the cleanup throw, and the cleanup error is logged independently.
 
 ## Areas for Improvement
@@ -217,6 +217,89 @@ Explicit assumptions from slice 1-4 — each one answers "what breaks if it isn'
 - **Mirror policy is the accepted policy for "external disappeared + local with edits".** The local loses its edits without syncing; the structured Warning records them for forensics. If in the future the model prohibited it (e.g., undo requirements), preserve+re-push or tombstones would be the alternative.
 - **`OutboxRetention` cutoff is computed against `DateTime.UtcNow` of the local host.** Slice 7 assumes the local clock is monotonic and aligned with the clocks that wrote the OutboxEvents (single-instance, NTP). Drift of minutes between hosts could purge events earlier or later than the configured window. Same caveat as LWW.
 - **The cleanup predicate uses `OccurredAt < cutoff` (not `ProcessedAt < cutoff`).** Assumes processing happens within a tick of the Occurred (typical case: event written at T, drained at T+60s). On a recovery scenario where a 1000-event backlog gets drained over many ticks, events processed-but-recently-occurred remain alive a tick longer; acceptable.
+
+---
+
+## Sync v1 Closeout
+
+One-page synthesis of the sync engine after slices 0–8 — the answer to "what does it do, what doesn't it do, how do I operate it, what would I change next". For depth, follow links into the rest of this file.
+
+### Capability matrix
+
+| Entity | Operation | Push (local → external) | Pull (external → local) |
+|---|---|---|---|
+| `TodoList` | Create | ✓ Outbox drain (Phase A) + legacy anti-join (Phase B) | ✓ Adopt via `source_id` or create local (CASE C) |
+| `TodoList` | Update | ⚠ Push no-op — Pull side handles PATCH via LWW reconciliation | ✓ PATCH external if local newer; remote-wins if external newer; tie → external |
+| `TodoList` | Delete | ✓ Orphan-mapping anti-join → external DELETE + 404 grace | ✓ Mirror + Warning (cascade local items + mappings) |
+| `TodoListItem` | Create | ⚠ Embedded in parent POST only — locally-new items in already-mapped lists log Warning and are skipped (external contract limitation) |  ✓ Adopt via `source_id` or create local |
+| `TodoListItem` | Update | ✓ Outbox drain → external PATCH; LWW reconciliation on pull | ✓ PATCH external if local newer; remote-wins if external newer; tie → external |
+| `TodoListItem` | Delete | ✓ Orphan-mapping anti-join → external DELETE + 404 grace | ✓ Mirror + Warning (per-item) |
+
+Status endpoint (`GET /api/sync/status`) surfaces last run per (entity × direction) pair plus pending outbox count.
+
+### Configuration cheat-sheet
+
+| Option | Default | When to change |
+|---|---|---|
+| `Sync:Interval` | `00:01:00` (60s) | Lower for fresher data; higher to reduce CPU/network if changes are rare |
+| `Sync:StartupDelay` | `00:00:05` (5s) | Increase if other startup work is slow and you don't want a tick mid-init |
+| `Sync:Enabled` | `true` | `false` disables the entire engine without removing code (maintenance mode) |
+| `Sync:OutboxBatchSize` | `1000` | Lower if memory-constrained; higher to drain backlogs faster (validated `> 0`; `<= 0` is documented graceful no-op) |
+| `Sync:OutboxRetention` | `7.00:00:00` (7d) | Lower under disk pressure; higher for longer forensic windows; `<= 0` disables Phase 5 cleanup |
+| `ExternalApi:BaseAddress` | `http://localhost:8080` | Set to the real external endpoint in non-dev environments |
+| `ExternalApi:RetryMaxAttempts` | `3` | Tune to observed transient failure rate (Polly exp + jitter applies between attempts) |
+| `ExternalApi:PerAttemptTimeoutSeconds` | `10` | Lower for tighter SLO; higher if the external is known to be slow |
+
+### Failure modes covered
+
+| Scenario | Mitigation | Log signature |
+|---|---|---|
+| External 5xx / 408 / 429 | Polly exponential retry + jitter, then circuit breaker | `HttpClient` resilience pipeline logs |
+| External non-transient 4xx | Per-entry `try/catch` → `failed++`, status `Partial`, run continues | `LogError` per-entry in `TodoListSyncService` / `TodoListItemSyncService` |
+| External `DELETE` returns 404 | 404 grace: treat as already resolved, clean local mapping | `LogInformation` "treating 404 as resolved" |
+| Circuit breaker open | Subsequent attempts fast-fail until half-open probe | Polly state-change logs |
+| Per-attempt timeout | Polly cancels and (if budget remains) retries | Polly logs |
+| Push crash mid-write | Pull adopts external orphan via `source_id`; Phase B legacy anti-join also recovers unmapped locals | `LogWarning` "adopting external by source_id" |
+| Outbox event for already-mapped entity | Skip POST, mark processed (idempotent re-drain) | `LogDebug` "outbox event already mapped, marking processed" |
+| Outbox event for deleted local (Create or Update) | No-op skip, mark processed | `LogDebug` "outbox event source missing, marking processed" |
+| Outbox event for unmapped item with mapped parent | Warning + mark processed (slice 3 contract limitation) | `LogWarning` "cannot sync new item — external lacks POST endpoint" |
+| External list disappeared (had local edits) | Mirror + Warning, cascade delete (list, items, mappings) | `LogWarning` "external disappeared, cascading local delete" |
+| Outbox grows unbounded | Phase 5 retention purge with configurable cutoff | `LogInformation` "purged N processed outbox events" |
+| Misconfigured `OutboxBatchSize = 0` | `Take(0)` empty → Phase A no-op; Phase B legacy fallback still drains | (silent — covered by `PushTodoListsAsync_OutboxBatchSizeZero_DrainsNothingAndDoesNotCrash`) |
+| `OutboxRetention <= 0` | Phase 5 skipped with `LogDebug` | `LogDebug` "outbox retention disabled" |
+
+### Operational runbook
+
+1. **Check status.** `curl http://localhost:5054/api/sync/status` (or whatever port Kestrel binds). Look for: stale `StartedAt`, non-`Succeeded`/`Partial` status, rising `PendingOutboxCount`, mismatched `Config` vs. expected.
+2. **Force a manual sync.** `POST /api/sync/run` runs all 4 sync phases inline and returns the per-phase result. Useful after an incident to verify external connectivity without waiting for the next tick.
+3. **Inspect logs.** Filter on `SyncBackgroundService`, `TodoListSyncService`, `TodoListItemSyncService`, `ExternalTodoListClient`. Common patterns: `circuit breaker opened` → external is down; retry exhaustion → external is slow or returning persistent errors; `adopting external by source_id` → recovery from a prior crash.
+4. **Purge the outbox manually.** Set `Sync:OutboxRetention` smaller in `appsettings.json` (e.g., `00:01:00` for 1 minute), restart. Phase 5 of the next tick removes processed events older than the cutoff. Restore the value when done.
+5. **Disable the engine without code changes.** Set `Sync:Enabled = false` in config (or env var `Sync__Enabled=false`), restart. `SyncBackgroundService.ExecuteAsync` returns immediately, no phases run, the API stays serving CRUD (which keeps writing outbox events that will drain when re-enabled).
+
+### Frozen limitations (v1)
+
+These are intentional cuts. Each has a known "what would unfreeze it":
+
+| Limitation | What would unfreeze it |
+|---|---|
+| Locally-new `TodoListItem` in already-pushed list does **not** propagate to external | External adds `POST /todolists/{listId}/todoitems` (formal suggestion in Areas for Improvement) |
+| Re-parenting items between lists is unsupported | Both local DTO and external contract would need to expose mutable `TodoListId` |
+| Single-instance assumption (one host running the BackgroundService) | Distributed leader election (Redis lock, Postgres advisory lock, etc.) or outbox partitioning by host |
+| Mirror policy on external delete (local edits lost silently) | Product decision to preserve local with conflict UI; or external exposing tombstone/restore endpoints |
+| `OutboxBatchSize <= 0` (negative) is undefined behavior | `IValidateOptions<SyncOptions>` fail-fast (slice 8+ backlog) |
+| Push-side `PATCH` of `TodoList.Update` is a no-op (only pull-side handles the asymmetry) | Slice 9 backlog: design race semantics vs. pull-side PATCH first, then implement |
+
+### What's documented but not implemented (acceptance, no test)
+
+These edge cases in `## Edge Cases` are marked `[ ]` — accepted because the cost of mitigation outweighs the residual risk for v1. Each is documented in-line above with rationale:
+
+- Crash between the two `SaveChanges` of `ApplyExternalCreateAsync` (microscopic window; pull would re-create on next tick → local duplicate).
+- Crash between `TodoListService.CreateAsync` and the OutboxEvent flush (Phase B legacy anti-join recovers).
+- External returns `id` > 64 chars (assumption: UUIDs ≤ 36 chars).
+- Concurrent execution from two API hosts (single-instance assumption).
+- External does not preserve `source_id` literally (assumption documented).
+- Race between push-side outbox `Update` event and pull-side PATCH of the same item (extra round-trip, idempotent end state).
+- `Take(-1)` for `OutboxBatchSize` (LINQ-undefined; covered by validator backlog above).
 
 ---
 
@@ -440,3 +523,50 @@ _Chronological, append-only. One entry per closed slice or per loaded decision w
   - **`TodoContext.cs` partial-class split** (~510 lines now after slice 7's `PurgeProcessedOutboxEventsAsync`) — `TodoContext.Sync.cs` would group the 19+ ISyncDbContext implementations. Cosmetic; low priority.
   - **Test pattern for `BulkDeleteExtensions` relational path** — slice 7 only tests the InMemory branch (production path is exercised indirectly by `dotnet ef` migrations on real SqlServer in dev). A future slice with a SqlServer fixture (Testcontainers) would close that gap.
   - **`SyncDbContextTests.cs` is the first test file in `TodoApi.Tests/Sync/Data/`** — pattern-establish for future ISyncDbContext-level tests. Currently scoped to the new method.
+
+### 2026-05-10 — Slice 8: Sync v1 Closeout — observability endpoint + synthesis docs
+- **Decision:** declare the sync engine **closed for v1**. Add a lightweight observability endpoint `GET /api/sync/status` (last run per `(EntityType, Direction)` pair, pending outbox count, oldest pending `OccurredAt`, current `SyncOptions` snapshot). Add a one-page **"Sync v1 Closeout"** section in `NOTES.md` synthesising capability matrix, configuration cheat-sheet, failure modes table, operational runbook, and frozen limitations. Convert the `OutboxBatchSize=0` boundary edge case to a regression test (the `[ ]` in Edge Cases is now `[x]`). No new sync features, no backlog items pulled in.
+- **Alternatives discarded:**
+  - **Pull `Slice 9 backlog` (push-side `PATCH TodoList`) into the closeout.** Would cross from "synthesis" into "new feature" and force a race-semantics decision against the pull-side PATCH that deserves its own brainstorm. Deferred.
+  - **Pull `Slice 8 backlog` (bounded concurrency + cursor pagination).** At current volumes (`OutboxBatchSize=1000` × `Interval=60s` ≈ 60 k/h serial), the existing serial drain comfortably fits the challenge envelope. Concurrency is a future capacity decision, not a closeout requirement.
+  - **Skip the status endpoint, document-only closeout (~1.5 h).** Cheaper but leaves the next slice (real-time bridge) blind to "is the engine even running, what's the backlog". The endpoint is the smallest piece of observability that pays for itself the moment a frontend connects.
+  - **Expose status via `ISyncDbContext` extension (add `OutboxEvents` DbSet to the abstraction).** Would bleed an observability concern into the sync abstraction. Instead, `SyncStatusService` lives in `TodoApi/Services/` and depends directly on `TodoContext` (allowed because `TodoApi → TodoApi.Sync` is one-way; no cycle).
+  - **Mock `SyncStatusService` in the controller test instead of using the real thing with InMemory.** Would test less. The real service against InMemory is the same shape used by every other controller test in this repo (`TodoListsControllerTests`, etc.) — consistent and exercises the actual queries.
+  - **Add a `SyncStatusController` separate from `SyncController`.** One more file for one more `GET`. The existing `SyncController` already aggregates "operate the sync" actions (`POST /run`); status fits naturally.
+- **Why:** the engine has been "feature-closed" since slice 7 — the remaining backlog is performance/multi-host/observability, none of which the spec requires. The cardinal need before connecting a real-time consumer is a **stamped boundary**: a single page that answers "what does the engine do, what doesn't it do, how do I operate it, when do I tune what". The closeout section is that stamp; the status endpoint is its runtime counterpart. Slice 9 (real-time bridge backend) becomes a clean next chapter rather than continued sync work.
+- **New assumptions:**
+  - **Last-run-per-pair is observed via 4 indexed lookups, not a `GROUP BY`.** Portable across providers (LINQ `GROUP BY` translation differs between InMemory and SqlServer) and the result set is bounded to 4 rows by definition. Each lookup hits the existing `(EntityType, StartedAt)` index on `SyncRuns`.
+  - **`SyncStatusService` lives in `TodoApi/Services/` (not `TodoApi.Sync`).** Status reading is a presentation concern (consumed by an HTTP endpoint) and pulling from `TodoContext` directly is allowed by the one-way reference (`TodoApi → TodoApi.Sync`). Keeps the Sync project focused on the pipeline.
+  - **Status response shape (`SyncStatusResponse`) is a v1 contract for whoever consumes it next** (the real-time frontend or a future ops dashboard). Adding fields is forward-compatible; renaming or removing requires coordination.
+- **Debt / follow-ups:**
+  - **Slice 9 — Real-time backend bridge** (`TodoSyncHub` + `OutboxBroadcastService` + frontend handoff doc). Already planned at `/Users/matiasromero/.claude/plans/revisa-lo-implementado-el-delegated-gosling.md`.
+  - **Status response could include `nextRunEta`** (computed from last `StartedAt` + `Interval`). Trivial to add; wait until a UI actually wants it.
+  - **Status endpoint has no auth.** Consistent with the rest of the API (challenge-internal). Production would need at least `[Authorize]` + a role check.
+  - **Push-side `PATCH TodoList` (Slice 9 backlog)** — still deferred. The Frozen-limitations table in the closeout names it explicitly.
+
+### 2026-05-10 — Slice 9: Real-time backend bridge — SignalR Hub + Outbox tail consumer + frontend handoff
+- **Decision:** add a SignalR hub `TodoSyncHub` at `/hubs/todosync` and a second `BackgroundService` (`OutboxBroadcastService`) that tail-reads `OutboxEvents` and broadcasts a lightweight `ChangeNotification` to all connected clients. **Backend-only this session**: ship the hub + broadcaster + tests + a self-contained handoff doc (`docs/realtime-frontend-integration.md`) that the frontend team uses to wire the React client. Strongly-typed hub (`Hub<ITodoSyncClient>`); pure broadcast logic extracted to `IOutboxBroadcaster` for unit testing; the `BackgroundService` is a thin timing shell. CORS configured for `http://localhost:5173` with `AllowCredentials` (SignalR negotiation requires explicit origins).
+- **Alternatives discarded:**
+  - **Hook the hub directly into `TodoListService` / `TodoListItemService` / sync services.** Couples business code to SignalR and forces every CRUD call site to remember to publish. The Outbox is already the canonical "sync-relevant change happened" channel — reusing it is one consumer, zero new responsibilities for the writers.
+  - **Hook the broadcast into `SyncBackgroundService` phases.** Would only fire after a sync tick — local CRUD changes wait up to `Sync:Interval` (default 60 s) before the user sees their own action. The independent broadcaster polls every `Realtime:BroadcastInterval` (default 2 s).
+  - **Mediator / event bus inside the process.** Overkill for a single in-process consumer; adds an indirection without solving anything the broadcaster doesn't already cover.
+  - **Send full entity payloads in the notification.** Couples the hub shape to the entity contract (versioning headache: changing the entity changes the wire format), grows the SignalR frame size, and forces clients to duplicate the merge logic the REST endpoints already encode. Refetch-on-notify wins for v1 — one extra round-trip per event in exchange for zero contract duplication. If telemetry ever shows it's a problem, flipping to push-with-payload is a backend-only change behind the same hub method names.
+  - **Mark `OutboxEvents.ProcessedAt` from the broadcaster.** That column is owned by the sync engine; mutating it from a parallel consumer would silently break the sync's drain. The broadcaster maintains its own in-memory cursor (last `Id` published) and never touches `ProcessedAt`.
+  - **Persist the broadcaster cursor.** Would let us replay events generated while the process was down. Not worth it for v1 because (a) clients bootstrap on `onreconnected` (full refresh covers the gap), (b) the sync engine is the durability layer for inter-process consistency, and (c) the persistence would have to be per-host in a future multi-instance world anyway. Documented as future debt.
+  - **Redis SignalR backplane.** Required only if multiple backend instances broadcast to overlapping client pools. Inherits the single-host assumption already documented for the sync engine; multi-host is a different architecture decision, not this slice.
+  - **Skip integration test, rely only on the broadcaster unit tests.** Unit tests cover the broadcaster's behaviour but not the actual hub negotiation, the `IHubContext<,>` DI wiring, or the CORS path. The 2 integration tests with `WebApplicationFactory<Program>` + a real `HubConnection` (long-polling transport over the in-process `TestServer.CreateHandler()`) close that gap.
+  - **Use WebSockets transport in the integration test.** TestServer in-process does not support WebSocket upgrade in the standard configuration. Long-polling exercises the same hub method dispatch and DI graph; production uses WebSockets via Kestrel. Acceptable trade.
+- **Why:** the cardinal goal is "frontend reacts to backend changes without polling, with the smallest possible blast radius on existing code". Reading the Outbox satisfies that perfectly: the outbox **already** records every relevant change, FIFO and durable, so the broadcaster is a pure consumer. Splitting into `OutboxBroadcaster` (logic) + `OutboxBroadcastService` (timing shell) lets us TDD the behaviour with real `TodoContext` + a `SpyClient` while keeping the BackgroundService trivially thin (no test needed beyond the integration path). The handoff doc is mandatory because the cleanest hub in the world is useless if the consumer team doesn't know how to call it — the doc covers transport choice, dedupe, optimistic-vs-broadcast races, CORS, smoke-testing without the React app, and explicit out-of-scope items so the contract boundary is unambiguous.
+- **New assumptions:**
+  - **Single-host backend.** Same as the sync engine. Cursor in memory, no Redis. Documented as a "what would unfreeze it" line in the handoff doc and in the Frozen Limitations table of the Closeout.
+  - **`ChangeNotification` shape is the public wire contract.** Adding fields is forward-compatible (deserializers ignore unknowns); removing or renaming requires coordination with frontend. Versioning policy spelled out in the handoff doc.
+  - **The broadcast cursor resets to `MAX(OutboxEvents.Id)` on every process start.** Events generated during downtime are NOT replayed by the hub — clients bootstrap on `onreconnected` (full refresh) to cover the gap. This is intentional: replay would require persisting per-cursor state and gives marginal benefit since the REST API is the authoritative store for any catch-up.
+  - **CORS allows `http://localhost:5173` with credentials by default.** Other origins require an `appsettings.json` change (`Cors:AllowedOrigins`). SignalR with credentials cannot use `*` — browser spec.
+  - **Long-polling transport is sufficient for in-process integration tests.** Production uses WebSockets via Kestrel. Both exercise the same hub method dispatch and DI graph; differences are at the byte-framing layer.
+- **Debt / follow-ups:**
+  - **Frontend implementation.** Owned by the React team. Doc at `docs/realtime-frontend-integration.md` is self-contained: install `@microsoft/signalr`, add Vite proxy with `ws: true`, wire `useTodoSyncHub` hook, dispatch refetch per notification.
+  - **Replay during disconnect.** Currently covered by `onreconnected` → full bootstrap. If a richer "give me everything since cursor=N" semantics is wanted, persist cursor per-client (probably keyed by some client id sent during negotiation). Not v1.
+  - **Multi-host backplane.** Add `Microsoft.AspNetCore.SignalR.StackExchangeRedis` + a Redis instance in `docker-compose.yml`. The broadcaster's per-host cursor would need to be coordinated (a global cursor in Redis or a per-host cursor with deduplication on the client). Requires a multi-host product decision first.
+  - **Hub auth.** None today. If the API gains auth, the hub inherits it via `[Authorize]` + `MapHub` ordering; per-user filtering can use SignalR groups keyed by user id.
+  - **Hub metrics.** Connection count, broadcast latency, dropped frames. `GET /api/sync/status` already covers "is the engine producing events"; a future Prometheus exporter could surface "is the broadcaster keeping up" too.
+  - **`ChangeNotification.parentEntityId`.** The frontend currently has to refetch all lists to know which list an item belongs to. Adding `parentEntityId` (nullable, populated for `TodoListItem` notifications) would let the client refetch only the affected list. Trivial backend change once the frontend confirms the value.

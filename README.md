@@ -109,7 +109,12 @@ circular reference with `TodoApi.Models`.
 
 For design decisions, edge cases, and assumptions see
 [`NOTES.md`](./NOTES.md) — the formal documentation deliverable for the
-challenge.
+challenge. The single-page synthesis (capability matrix, configuration
+cheat-sheet, failure modes, runbook, frozen limitations) lives at
+[Sync v1 Closeout](./NOTES.md#sync-v1-closeout); use it as the operational
+entry point. Live state of the engine is exposed at
+[`GET /api/sync/status`](#observability) — last run per `(entity, direction)`
+pair, pending outbox count, and the active configuration.
 
 ### Outbox Pattern
 
@@ -170,6 +175,76 @@ curl -X POST http://localhost:5000/api/sync/run | jq
 ```
 
 `status` is the `SyncRunStatus` enum: `1=Running, 2=Succeeded, 3=Failed, 4=Partial`.
+
+### Observability
+
+`GET /api/sync/status` is a read-only snapshot for operators and downstream
+consumers (e.g., a real-time UI). It returns the most recent `SyncRun` per
+`(EntityType, Direction)` pair (up to four entries — `TodoList`/`TodoListItem` ×
+`Push`/`Pull`), the current count of pending `OutboxEvents`, the oldest pending
+`OccurredAt`, and a snapshot of the active `SyncOptions`.
+
+```bash
+curl http://localhost:5000/api/sync/status | jq
+```
+
+```json
+{
+  "lastRuns": [
+    {
+      "entityType": 1, "direction": 1,
+      "startedAt": "2026-05-10T12:00:00Z",
+      "finishedAt": "2026-05-10T12:00:02Z",
+      "status": 2, "itemsProcessed": 5, "itemsFailed": 0, "error": null
+    }
+  ],
+  "pendingOutboxCount": 3,
+  "oldestPendingOutboxOccurredAt": "2026-05-10T11:30:00Z",
+  "config": {
+    "interval": "00:01:00", "startupDelay": "00:00:05",
+    "enabled": true, "outboxBatchSize": 1000, "outboxRetention": "7.00:00:00"
+  }
+}
+```
+
+Cheap (4 indexed lookups + 2 outbox queries, all using existing indices). Safe
+to poll. The full operational runbook lives at
+[Sync v1 Closeout](./NOTES.md#sync-v1-closeout) in `NOTES.md`.
+
+### Real-Time Notifications (SignalR)
+
+A second `BackgroundService` (`OutboxBroadcastService`) tail-reads `OutboxEvents`
+and pushes lightweight notifications over a **SignalR hub** so connected
+frontends can refresh in real time without polling. The hub lives at
+`/hubs/todosync` and broadcasts two strongly-typed methods —
+`TodoListChanged` and `TodoListItemChanged` — with the payload
+`{ eventId, entityType, entityId, operation, occurredAt }`. Clients refetch
+the affected REST endpoint on receipt; no contract duplication.
+
+Configuration (`appsettings.json`):
+
+```json
+"Realtime": {
+  "BroadcastInterval": "00:00:02",   // tail poll cadence (250 ms .. 60 s)
+  "BatchSize": 200                    // events per loop iteration (1 .. 1000)
+},
+"Cors": {
+  "AllowedOrigins": [ "http://localhost:5173" ]
+}
+```
+
+CORS allows the configured origins with credentials (SignalR requires explicit
+origins, not `*`). Single-host assumption inherits from the sync engine — the
+broadcaster's cursor is in-memory and resets to `MAX(OutboxEvents.Id)` on
+restart. No replay of events generated during downtime; clients are expected to
+bootstrap on `onreconnected`.
+
+See [`diagrams/signalr-broadcast-flow.html`](./diagrams/signalr-broadcast-flow.html)
+for a visual walk-through of how an `OutboxEvent` becomes a live UI update via
+the broadcaster, the hub, and the client re-fetch.
+
+The full implementation guide for the React client lives at
+[`docs/realtime-frontend-integration.md`](./docs/realtime-frontend-integration.md).
 
 ### Running with the External API
 
@@ -286,6 +361,10 @@ cleanup, and the provider-aware bulk-delete helper shipped in Slice 7.
   — *OutboxEvent vs SyncMapping — sync engine internals.* Self-contained HTML
   explainer covering the operational and conceptual relationship between the
   two tables across a tick.
+- [`diagrams/signalr-broadcast-flow.html`](./diagrams/signalr-broadcast-flow.html)
+  — *SignalR over Outbox — how OutboxEvents become live UI updates.* Vertical
+  flow with tick boundary and Y-split: hub, broadcaster, hosted service, and
+  why the broadcaster never touches `ProcessedAt`.
 - [`diagrams/STYLE.md`](./diagrams/STYLE.md) — visual system ("Terminal
   Schematic") and conventions for any new HTML or diagram added under
   `diagrams/`. New visual artifacts should follow this guide.

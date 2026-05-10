@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace TodoApi.Tests.Integration;
 
-public sealed class TodoApiWebApplicationFactory : WebApplicationFactory<Program>
+public class TodoApiWebApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string _externalBaseAddress;
     private readonly string _databaseName = $"todo-{Guid.NewGuid()}";

@@ -2822,4 +2822,55 @@ public class TodoListSyncServiceTests
         Assert.Equal(3, ctx.OutboxEvents.Count(e => e.ProcessedAt == null));
         client.VerifyNoOtherCalls();
     }
+
+    [Fact]
+    public async Task PushTodoListsAsync_OutboxBatchSizeZero_DrainsNothingAndDoesNotCrash()
+    {
+        // Boundary: OutboxBatchSize=0 means Take(0), Phase A drains nothing. Pending
+        // events stay pending for the next tick once configuration is corrected. We use
+        // already-mapped lists so Phase B's anti-join also no-ops, isolating the
+        // configuration boundary as the only mechanism in play.
+        await using var ctx = new TodoContext(NewDbOptions());
+        for (long i = 1; i <= 3; i++)
+        {
+            ctx.TodoList.Add(new TodoApi.Models.TodoList { Id = i, Name = $"List {i}" });
+            ctx.SyncMappings.Add(
+                new SyncMapping
+                {
+                    EntityType = SyncEntityType.TodoList,
+                    LocalId = i,
+                    ExternalId = $"ext-{i}",
+                    LastSyncedAt = DateTime.UtcNow,
+                    IdempotencyKey = Guid.NewGuid(),
+                }
+            );
+            ctx.OutboxEvents.Add(
+                new OutboxEvent
+                {
+                    EntityType = SyncEntityType.TodoList,
+                    EntityId = i,
+                    Operation = OutboxOperation.Create,
+                    OccurredAt = DateTime.UtcNow.AddSeconds(i),
+                    IdempotencyKey = Guid.NewGuid(),
+                }
+            );
+        }
+        await ctx.SaveChangesAsync();
+
+        var client = new Mock<IExternalTodoListClient>(MockBehavior.Strict);
+
+        var sut = new TodoListSyncService(
+            ctx,
+            client.Object,
+            Options.Create(new SyncOptions { OutboxBatchSize = 0 }),
+            NullLogger<TodoListSyncService>.Instance
+        );
+
+        var result = await sut.PushTodoListsAsync(CancellationToken.None);
+
+        Assert.Equal(SyncRunStatus.Succeeded, result.Status);
+        Assert.Equal(0, ctx.OutboxEvents.Count(e => e.ProcessedAt != null));
+        Assert.Equal(3, ctx.OutboxEvents.Count(e => e.ProcessedAt == null));
+        client.VerifyNoOtherCalls();
+    }
 }

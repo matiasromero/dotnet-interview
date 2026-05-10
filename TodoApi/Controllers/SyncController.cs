@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TodoApi.Dtos;
+using TodoApi.Services;
 using TodoApi.Sync.Models;
 using TodoApi.Sync.Services;
 
@@ -12,16 +13,29 @@ namespace TodoApi.Controllers
         private readonly ITodoListSyncService _listSync;
         private readonly ITodoListItemSyncService _itemSync;
         private readonly ILogger<SyncController> _logger;
+        private readonly ISyncStatusService _statusService;
 
         public SyncController(
             ITodoListSyncService listSync,
             ITodoListItemSyncService itemSync,
-            ILogger<SyncController> logger
+            ILogger<SyncController> logger,
+            ISyncStatusService statusService
         )
         {
             _listSync = listSync;
             _itemSync = itemSync;
             _logger = logger;
+            _statusService = statusService;
+        }
+
+        // GET: api/sync/status
+        [HttpGet("status")]
+        public async Task<ActionResult<SyncStatusResponse>> GetStatus(
+            CancellationToken cancellationToken
+        )
+        {
+            var snapshot = await _statusService.GetStatusAsync(cancellationToken);
+            return Ok(snapshot);
         }
 
         // POST: api/sync/run
