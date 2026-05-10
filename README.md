@@ -120,6 +120,14 @@ only then move on. This is what makes a local change durable across
 background-service crashes and gives push idempotency a transactional
 foundation.
 
+The drain is bounded by `Sync:OutboxBatchSize` (default `1000`); larger
+backlogs are processed across subsequent ticks. A **5th tick phase** purges
+processed events older than `Sync:OutboxRetention` (default `7.00:00:00`)
+through a provider-aware bulk delete (`ExecuteDeleteAsync` on relational
+providers, `RemoveRange` + `SaveChanges` for InMemory). Set
+`Sync:OutboxRetention=00:00:00` to disable the cleanup; the table is then
+expected to be managed externally.
+
 See [`diagrams/outbox-syncmapping-flow.html`](./diagrams/outbox-syncmapping-flow.html)
 for a visual walk-through of how `OutboxEvent` and `SyncMapping` interact
 across a tick.
@@ -134,6 +142,8 @@ across a tick.
 | `Sync:Interval` | `00:01:00` | Time between sync ticks. Reloaded via `IOptionsMonitor` if config changes. |
 | `Sync:StartupDelay` | `00:00:05` | Delay before the first tick after the host starts. |
 | `Sync:Enabled` | `true` | Set to `false` to disable the background ticker. The manual trigger endpoint still works. |
+| `Sync:OutboxBatchSize` | `1000` | Cap on `OutboxEvents` drained per tick (Phase A). Backlogs spill into subsequent ticks. |
+| `Sync:OutboxRetention` | `7.00:00:00` | TTL for processed `OutboxEvents`. The 5th tick phase deletes rows with `ProcessedAt != null && OccurredAt < UtcNow - retention`. `00:00:00` disables the cleanup. |
 
 Settings live in `TodoApi/appsettings.json` and can be overridden via
 environment variables (`ExternalApi__BaseAddress=...`) or per-environment
@@ -247,9 +257,11 @@ Restore tools first if needed: `dotnet tool restore`.
 ## Areas of Improvement
 
 The active backlog (telemetry, multi-host concurrency, `TimeProvider`
-abstraction, outbox retention + bounded concurrency, etc.) lives in
+abstraction, bounded concurrency on outbox drain, push-side PATCH for
+TodoList Update events, etc.) lives in
 [`NOTES.md` Areas for Improvement](./NOTES.md#areas-for-improvement).
-The Outbox pattern itself shipped in Slice 6.
+The Outbox pattern shipped in Slice 6; configurable batch size, retention
+cleanup, and the provider-aware bulk-delete helper shipped in Slice 7.
 
 ## Documentation & Diagrams
 
