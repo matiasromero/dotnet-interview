@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -41,6 +42,7 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
+        var sw = Stopwatch.StartNew();
         int processed = 0;
         int failed = 0;
         int total = 0;
@@ -201,6 +203,15 @@ public class TodoListItemSyncService : ITodoListItemSyncService
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
+        sw.Stop();
+        _logger.LogInformation(
+            "Sync item push completed in {ElapsedMs}ms: total={Total} processed={Processed} failed={Failed}",
+            sw.ElapsedMilliseconds,
+            total,
+            processed,
+            failed
+        );
+
         return new SyncRunResult(total, processed, failed, run.Status);
     }
 
@@ -359,6 +370,7 @@ public class TodoListItemSyncService : ITodoListItemSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
+        var sw = Stopwatch.StartNew();
         var mappedItems = await _db.GetMappedTodoListItemsAsync(cancellationToken);
         var mappedItemsByExternalId = mappedItems.ToDictionary(
             m => m.ExternalItemId,
@@ -498,6 +510,15 @@ public class TodoListItemSyncService : ITodoListItemSyncService
                 ? SyncRunStatus.Succeeded
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
+
+        sw.Stop();
+        _logger.LogInformation(
+            "Sync item pull completed in {ElapsedMs}ms: total={Total} processed={Processed} failed={Failed}",
+            sw.ElapsedMilliseconds,
+            total,
+            processed,
+            failed
+        );
 
         return new SyncRunResult(total, processed, failed, run.Status);
     }

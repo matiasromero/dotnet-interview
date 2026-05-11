@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -53,9 +54,12 @@ public sealed class SyncBackgroundService : BackgroundService
 
                 try
                 {
+                    var sw = Stopwatch.StartNew();
                     var pushList = await listSync.PushTodoListsAsync(stoppingToken);
+                    sw.Stop();
                     _logger.LogInformation(
-                        "Sync list push tick: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        "Sync list push tick completed in {ElapsedMs}ms: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        sw.ElapsedMilliseconds,
                         pushList.Total,
                         pushList.Pushed,
                         pushList.Failed,
@@ -73,9 +77,12 @@ public sealed class SyncBackgroundService : BackgroundService
 
                 try
                 {
+                    var sw = Stopwatch.StartNew();
                     var pushItem = await itemSync.PushTodoListItemsAsync(stoppingToken);
+                    sw.Stop();
                     _logger.LogInformation(
-                        "Sync item push tick: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        "Sync item push tick completed in {ElapsedMs}ms: total={Total} pushed={Pushed} failed={Failed} status={Status}",
+                        sw.ElapsedMilliseconds,
                         pushItem.Total,
                         pushItem.Pushed,
                         pushItem.Failed,
@@ -95,10 +102,13 @@ public sealed class SyncBackgroundService : BackgroundService
                     Array.Empty<ExternalListWithMapping>();
                 try
                 {
+                    var sw = Stopwatch.StartNew();
                     var (pullList, mes) = await listSync.PullTodoListsAsync(stoppingToken);
                     mappedExternals = mes;
+                    sw.Stop();
                     _logger.LogInformation(
-                        "Sync list pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
+                        "Sync list pull tick completed in {ElapsedMs}ms: total={Total} processed={Processed} failed={Failed} status={Status}",
+                        sw.ElapsedMilliseconds,
                         pullList.Total,
                         pullList.Pushed,
                         pullList.Failed,
@@ -118,12 +128,15 @@ public sealed class SyncBackgroundService : BackgroundService
                 {
                     try
                     {
+                        var sw = Stopwatch.StartNew();
                         var pullItem = await itemSync.PullTodoListItemsAsync(
                             mappedExternals,
                             stoppingToken
                         );
+                        sw.Stop();
                         _logger.LogInformation(
-                            "Sync item pull tick: total={Total} processed={Processed} failed={Failed} status={Status}",
+                            "Sync item pull tick completed in {ElapsedMs}ms: total={Total} processed={Processed} failed={Failed} status={Status}",
+                            sw.ElapsedMilliseconds,
                             pullItem.Total,
                             pullItem.Pushed,
                             pullItem.Failed,
@@ -155,14 +168,17 @@ public sealed class SyncBackgroundService : BackgroundService
                     }
                     else
                     {
+                        var sw = Stopwatch.StartNew();
                         var db = scope.ServiceProvider.GetRequiredService<ISyncDbContext>();
                         var cutoff = DateTime.UtcNow - retention;
                         var purged = await db.PurgeProcessedOutboxEventsAsync(
                             cutoff,
                             stoppingToken
                         );
+                        sw.Stop();
                         _logger.LogInformation(
-                            "Sync outbox retention tick: purged={Count} olderThan={Cutoff:o}",
+                            "Sync outbox retention tick completed in {ElapsedMs}ms: purged={Count} olderThan={Cutoff:o}",
+                            sw.ElapsedMilliseconds,
                             purged,
                             cutoff
                         );

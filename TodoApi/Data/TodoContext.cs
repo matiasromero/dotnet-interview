@@ -1,12 +1,19 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using TodoApi.Models;
 using TodoApi.Sync.Data;
 using TodoApi.Sync.Models;
 
 public class TodoContext : DbContext, ISyncDbContext
 {
-    public TodoContext(DbContextOptions<TodoContext> options)
-        : base(options) { }
+    private readonly ILogger<TodoContext> _logger;
+
+    public TodoContext(DbContextOptions<TodoContext> options, ILogger<TodoContext>? logger = null)
+        : base(options)
+    {
+        _logger = logger ?? NullLogger<TodoContext>.Instance;
+    }
 
     public DbSet<TodoList> TodoList { get; set; } = default!;
     public DbSet<TodoListItem> TodoListItem { get; set; } = default!;
@@ -93,6 +100,12 @@ public class TodoContext : DbContext, ISyncDbContext
         var local = new TodoList { Name = plan.Name, UpdatedAt = plan.ExternalUpdatedAt };
         TodoList.Add(local);
         await SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Created external TodoList {ExternalId} -> local {LocalId} with name {Name}",
+            plan.ExternalId,
+            local.Id,
+            plan.Name
+        );
 
         SyncMappings.Add(
             new SyncMapping
@@ -120,6 +133,11 @@ public class TodoContext : DbContext, ISyncDbContext
                 .ToList();
             TodoListItem.AddRange(newItems);
             await SaveChangesAsync(cancellationToken);
+            _logger.LogInformation(
+                "Created {ItemCount} TodoListItems for external TodoList {ExternalId}",
+                newItems.Count,
+                plan.ExternalId
+            );
 
             var now = DateTime.UtcNow;
             for (int i = 0; i < newItems.Count; i++)
@@ -142,6 +160,12 @@ public class TodoContext : DbContext, ISyncDbContext
         }
 
         await SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Created external TodoList {ExternalId} -> local {LocalId} with {ItemCount} items and mappings persisted",
+            plan.ExternalId,
+            local.Id,
+            plan.Items.Count
+        );
     }
 
     public async Task ApplyRemoteWinsAsync(
@@ -160,6 +184,15 @@ public class TodoContext : DbContext, ISyncDbContext
                 $"ApplyRemoteWinsAsync: SyncMapping {plan.MappingId} not found"
             );
 
+        _logger.LogInformation(
+            "Reconciling TodoList {LocalId}: external wins (local={LocalName} → {NewName}, local={LocalUpdatedAt} → {ExternalUpdatedAt})",
+            plan.LocalId,
+            local.Name,
+            plan.NewName,
+            local.UpdatedAt,
+            plan.ExternalUpdatedAt
+        );
+
         local.Name = plan.NewName;
         local.UpdatedAt = plan.ExternalUpdatedAt;
 
@@ -168,6 +201,11 @@ public class TodoContext : DbContext, ISyncDbContext
         mapping.LastSyncedAt = DateTime.UtcNow;
 
         await SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Reconciled TodoList {LocalId}: external wins applied",
+            plan.LocalId
+        );
     }
 
     public async Task<List<LocalTodoListItemRecord>> GetUnmappedTodoListItemsWithMappedParentAsync(
@@ -296,6 +334,16 @@ public class TodoContext : DbContext, ISyncDbContext
                 $"ApplyRemoteWinsItemAsync: SyncMapping {plan.MappingId} not found"
             );
 
+        _logger.LogInformation(
+            "Reconciling TodoListItem {LocalId}: external wins (local={LocalDescription} IsCompleted={LocalIsCompleted} → {NewIsCompleted}, local={LocalUpdatedAt} → {ExternalUpdatedAt})",
+            plan.LocalId,
+            item.Description,
+            item.IsCompleted,
+            plan.NewCompleted,
+            item.UpdatedAt,
+            plan.ExternalUpdatedAt
+        );
+
         item.Description = plan.NewDescription;
         item.IsCompleted = plan.NewCompleted;
         item.UpdatedAt = plan.ExternalUpdatedAt;
@@ -305,6 +353,11 @@ public class TodoContext : DbContext, ISyncDbContext
         mapping.LastSyncedAt = DateTime.UtcNow;
 
         await SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Reconciled TodoListItem {LocalId}: external wins applied",
+            plan.LocalId
+        );
     }
 
     public async Task PersistEmbeddedItemMappingsAsync(
@@ -316,6 +369,12 @@ public class TodoContext : DbContext, ISyncDbContext
         {
             return;
         }
+
+        _logger.LogInformation(
+            "Persisting {MappingCount} embedded item mappings for parent {ParentExternalId}",
+            plan.Items.Count,
+            plan.ParentExternalId
+        );
 
         var now = DateTime.UtcNow;
         foreach (var item in plan.Items)
@@ -335,6 +394,11 @@ public class TodoContext : DbContext, ISyncDbContext
             );
         }
         await SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "Persisted {MappingCount} embedded item mappings for parent {ParentExternalId}",
+            plan.Items.Count,
+            plan.ParentExternalId
+        );
     }
 
     public async Task<List<OrphanedListMapping>> GetOrphanedListMappingsAsync(
@@ -363,6 +427,13 @@ public class TodoContext : DbContext, ISyncDbContext
             )
             .ToListAsync(cancellationToken);
 
+        _logger.LogInformation(
+            "Deleting TodoList {LocalId}: {ItemCount} items, {MappingCount} mappings",
+            plan.LocalListId,
+            localItems.Count,
+            itemMappings.Count + 1
+        );
+
         SyncMappings.RemoveRange(itemMappings);
         TodoListItem.RemoveRange(localItems);
 
@@ -382,6 +453,7 @@ public class TodoContext : DbContext, ISyncDbContext
         }
 
         await SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Deleted TodoList {LocalId}", plan.LocalListId);
     }
 
     public async Task ApplyExternalDeleteItemAsync(
@@ -389,6 +461,8 @@ public class TodoContext : DbContext, ISyncDbContext
         CancellationToken cancellationToken = default
     )
     {
+        _logger.LogInformation("Deleting TodoListItem {LocalId}", plan.LocalItemId);
+
         var mapping = await SyncMappings.FindAsync(
             new object?[] { plan.MappingId },
             cancellationToken
@@ -408,6 +482,7 @@ public class TodoContext : DbContext, ISyncDbContext
         }
 
         await SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Deleted TodoListItem {LocalId}", plan.LocalItemId);
     }
 
     public async Task<LocalTodoListRecord?> GetLocalTodoListByIdAsync(
@@ -477,15 +552,21 @@ public class TodoContext : DbContext, ISyncDbContext
         }
         evt.ProcessedAt = DateTime.UtcNow;
         await SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("Marked OutboxEvent {EventId} as processed", eventId);
     }
 
-    public Task<int> PurgeProcessedOutboxEventsAsync(
+    public async Task<int> PurgeProcessedOutboxEventsAsync(
         DateTime cutoff,
         CancellationToken cancellationToken = default
-    ) =>
-        OutboxEvents
+    )
+    {
+        _logger.LogInformation("Purging processed OutboxEvents older than {Cutoff}", cutoff);
+        var deletedCount = await OutboxEvents
             .Where(e => e.ProcessedAt != null && e.OccurredAt < cutoff)
             .ExecuteBulkDeleteAsync(this, cancellationToken);
+        _logger.LogInformation("Purged {DeletedCount} processed OutboxEvents", deletedCount);
+        return deletedCount;
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

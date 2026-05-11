@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -41,6 +42,7 @@ public class TodoListSyncService : ITodoListSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
+        var sw = Stopwatch.StartNew();
         int processed = 0;
         int failed = 0;
         int total = 0;
@@ -145,6 +147,15 @@ public class TodoListSyncService : ITodoListSyncService
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
+        sw.Stop();
+        _logger.LogInformation(
+            "Sync list push completed in {ElapsedMs}ms: total={Total} processed={Processed} failed={Failed}",
+            sw.ElapsedMilliseconds,
+            total,
+            processed,
+            failed
+        );
+
         return new SyncRunResult(total, processed, failed, run.Status);
     }
 
@@ -163,6 +174,7 @@ public class TodoListSyncService : ITodoListSyncService
         _db.SyncRuns.Add(run);
         await _db.SaveChangesAsync(cancellationToken);
 
+        var sw = Stopwatch.StartNew();
         var mappedExternals = new List<ExternalListWithMapping>();
 
         IReadOnlyList<ExternalTodoList> externals;
@@ -299,6 +311,15 @@ public class TodoListSyncService : ITodoListSyncService
                 : (processed == 0 ? SyncRunStatus.Failed : SyncRunStatus.Partial);
         await _db.SaveChangesAsync(cancellationToken);
 
+        sw.Stop();
+        _logger.LogInformation(
+            "Sync list pull completed in {ElapsedMs}ms: total={Total} processed={Processed} failed={Failed}",
+            sw.ElapsedMilliseconds,
+            total,
+            processed,
+            failed
+        );
+
         return (new SyncRunResult(total, processed, failed, run.Status), mappedExternals);
     }
 
@@ -312,6 +333,15 @@ public class TodoListSyncService : ITodoListSyncService
             external.UpdatedAt > (mapped.ExternalUpdatedAtAtSync ?? DateTime.MinValue);
         var localChanged =
             mapped.CurrentLocalUpdatedAt > (mapped.LocalUpdatedAtAtSync ?? DateTime.MinValue);
+
+        _logger.LogInformation(
+            "Reconciling TodoList {LocalId}: external={ExternalUpdatedAt} local={LocalUpdatedAt} (externalChanged={ExternalChanged}, localChanged={LocalChanged})",
+            mapped.LocalId,
+            external.UpdatedAt,
+            mapped.CurrentLocalUpdatedAt,
+            externalChanged,
+            localChanged
+        );
 
         if (externalChanged && localChanged)
         {

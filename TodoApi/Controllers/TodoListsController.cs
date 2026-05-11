@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging.Abstractions;
 using TodoApi.Dtos;
+using TodoApi.Middleware;
 using TodoApi.Models;
 using TodoApi.Services;
 
@@ -10,10 +12,15 @@ namespace TodoApi.Controllers
     public class TodoListsController : ControllerBase
     {
         private readonly ITodoListService _todoListService;
+        private readonly ILogger<TodoListsController> _logger;
 
-        public TodoListsController(ITodoListService todoListService)
+        public TodoListsController(
+            ITodoListService todoListService,
+            ILogger<TodoListsController>? logger = null
+        )
         {
             _todoListService = todoListService;
+            _logger = logger ?? NullLogger<TodoListsController>.Instance;
         }
 
         // GET: api/todolists
@@ -42,6 +49,13 @@ namespace TodoApi.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult> PutTodoList(long id, UpdateTodoList payload)
         {
+            var correlationId = HttpContext.GetCorrelationId();
+            _logger.LogInformation(
+                "PUT /todolists/{TodoListId} {TodoListName} (CorrelationId: {CorrelationId})",
+                id,
+                payload.Name,
+                correlationId
+            );
             var updated = await _todoListService.UpdateAsync(id, payload);
 
             if (!updated)
@@ -49,6 +63,11 @@ namespace TodoApi.Controllers
                 return NotFound();
             }
 
+            _logger.LogInformation(
+                "Updated TodoList {TodoListId} (CorrelationId: {CorrelationId})",
+                id,
+                correlationId
+            );
             var todoList = await _todoListService.GetByIdAsync(id);
             return Ok(todoList);
         }
@@ -58,7 +77,18 @@ namespace TodoApi.Controllers
         [HttpPost]
         public async Task<ActionResult<TodoList>> PostTodoList(CreateTodoList payload)
         {
+            var correlationId = HttpContext.GetCorrelationId();
+            _logger.LogInformation(
+                "POST /todolists {TodoListName} (CorrelationId: {CorrelationId})",
+                payload.Name,
+                correlationId
+            );
             var todoList = await _todoListService.CreateAsync(payload);
+            _logger.LogInformation(
+                "Created TodoList {TodoListId} (CorrelationId: {CorrelationId})",
+                todoList.Id,
+                correlationId
+            );
             return CreatedAtAction("GetTodoList", new { id = todoList.Id }, todoList);
         }
 
@@ -66,12 +96,23 @@ namespace TodoApi.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteTodoList(long id)
         {
+            var correlationId = HttpContext.GetCorrelationId();
+            _logger.LogInformation(
+                "DELETE /todolists/{TodoListId} (CorrelationId: {CorrelationId})",
+                id,
+                correlationId
+            );
             var deleted = await _todoListService.DeleteAsync(id);
             if (!deleted)
             {
                 return NotFound();
             }
 
+            _logger.LogInformation(
+                "Deleted TodoList {TodoListId} (CorrelationId: {CorrelationId})",
+                id,
+                correlationId
+            );
             return NoContent();
         }
     }

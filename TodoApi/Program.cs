@@ -5,6 +5,7 @@ using SharpGrip.FluentValidation.AutoValidation.Mvc.Extensions;
 using TodoApi.Configuration;
 using TodoApi.Hosting;
 using TodoApi.Hubs;
+using TodoApi.Middleware;
 using TodoApi.Services;
 using TodoApi.Sync.DependencyInjection;
 
@@ -62,6 +63,8 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 var app = builder.Build();
+
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
