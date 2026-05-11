@@ -427,6 +427,11 @@ cleanup, and the provider-aware bulk-delete helper shipped in Slice 7.
 
 ## Documentation & Diagrams
 
+**Video Walkthrough**
+
+- [Application Walkthrough](https://youtu.be/OfGnYIk3Zt8) — Video overview of
+  the architecture, sync engine, observability, and key features.
+
 **Reference documents**
 
 - [`CHALLENGE.md`](./CHALLENGE.md) — frozen upstream specification of the
