@@ -4,14 +4,15 @@
 
 A Todo List API built in .NET 8 with a bidirectional sync engine that mirrors local
 state with an external Todo API. Local mutations are captured transactionally via
-an Outbox table; a background service runs four push/pull phases per tick with
-last-write-wins reconciliation, `source_id`-based orphan adoption, and
-mirror-policy cascade-delete. The implementation is the senior-engineer challenge
-from Crunchloop, layered on top of the original full-stack interview project.
+an Outbox table; a background service runs four push/pull phases per tick (plus a
+fifth outbox-retention sweep) with last-write-wins reconciliation, `source_id`-based
+orphan adoption, and mirror-policy cascade-delete. The implementation is the
+senior-engineer challenge from Crunchloop, layered on top of the original full-stack
+interview project.
 
 ## Architecture
 
-The solution has three projects:
+The solution has three core projects plus a dev-only fake external API:
 
 - **`TodoApi`** — ASP.NET Core 8 controllers, services, EF Core models, and
   FluentValidation validators. CRUD over `TodoList` and nested `TodoListItem`.
@@ -20,6 +21,9 @@ The solution has three projects:
 - **`TodoApi.Tests`** — xUnit test suite. Unit tests use EF InMemory and direct
   service instantiation; integration tests use `WebApplicationFactory<Program>`
   + `WireMock.Net`.
+- **`TodoApi.FakeExternalApi`** — stateful in-memory stand-in for the upstream
+  external API, used for local demos and integration runs (see
+  [Running with the Fake External API](#running-with-the-fake-external-api-no-docker)).
 
 The application schema and the sync-engine bookkeeping are documented under
 [Domain Model](#domain-model).
@@ -113,9 +117,11 @@ as a separate class library (`TodoApi.Sync`) referenced from `TodoApi`, with
 three layers:
 
 1. **Trigger** — `SyncBackgroundService` runs each `Sync:Interval` (default 60s)
-   after `Sync:StartupDelay`. Per tick, four phases run in fixed order under
-   independent try/catch blocks: **list push → item push → list pull → item
-   pull**. A failure in one phase is logged and the next phase still runs.
+   after `Sync:StartupDelay`. Per tick, four sync phases run in fixed order under
+   independent try/catch blocks (**list push → item push → list pull → item
+   pull**), followed by a fifth phase that purges processed `OutboxEvents` past
+   `Sync:OutboxRetention`. A failure in one phase is logged and the next phase
+   still runs.
 2. **Logic** — `TodoListSyncService` and `TodoListItemSyncService` implement
    push and pull:
    - **Push** drains `OutboxEvents` (Create / Update / Delete) in `OccurredAt`
@@ -141,16 +147,12 @@ in `TodoContext`, exposed to `TodoApi.Sync` through `ISyncDbContext` to avoid a
 circular reference with `TodoApi.Models`.
 
 For design decisions, edge cases, and assumptions see
-[`NOTES.md`](./NOTES.md) — the formal documentation deliverable for the
-challenge. The single-page synthesis (capability matrix, configuration
-cheat-sheet, failure modes, runbook, frozen limitations) lives at
-[Sync v1 Closeout](./NOTES.md#sync-v1-closeout); use it as the operational
-entry point. The analysis of intentional cuts (multi-instance horizontal
-scaling, push-side PATCH, mirror-policy alternatives, etc.) lives at
-[Out of Scope & What It Would Take](./NOTES.md#out-of-scope--what-it-would-take)
-— each item follows a six-header template (status quo · dimensions touched ·
-options · operational implications · test strategy · decision criteria). Live
-state of the engine is exposed at
+[`NOTES.md`](./NOTES.md). The operational entry point is
+[Sync v1 Closeout](./NOTES.md#sync-v1-closeout) (capability matrix,
+configuration cheat-sheet, failure modes, runbook, frozen limitations); the
+analysis of intentional cuts lives at
+[Out of Scope & What It Would Take](./NOTES.md#out-of-scope--what-it-would-take).
+Live state of the engine is exposed at
 [`GET /api/sync/status`](#observability) — last run per `(entity, direction)`
 pair, pending outbox count, and the active configuration.
 
@@ -418,12 +420,13 @@ Restore tools first if needed: `dotnet tool restore`.
 
 ## Areas of Improvement
 
-The active backlog (telemetry, multi-host concurrency, `TimeProvider`
-abstraction, bounded concurrency on outbox drain, push-side PATCH for
-TodoList Update events, etc.) lives in
-[`NOTES.md` Areas for Improvement](./NOTES.md#areas-for-improvement).
-The Outbox pattern shipped in Slice 6; configurable batch size, retention
-cleanup, and the provider-aware bulk-delete helper shipped in Slice 7.
+Active backlog (telemetry, multi-host concurrency, `TimeProvider` abstraction,
+bounded concurrency on outbox drain, push-side PATCH for `TodoList.Update`
+events, etc.) lives in
+[`NOTES.md` Areas for Improvement](./NOTES.md#areas-for-improvement). The fully
+analyzed intentional cuts — each with options, operational implications, and
+decision criteria — are at
+[Out of Scope & What It Would Take](./NOTES.md#out-of-scope--what-it-would-take).
 
 ## Documentation & Diagrams
 
